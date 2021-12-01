@@ -1,0 +1,96 @@
+
+# Linguagem C
+# Plataforma Linux
+# Sockets UDP
+
+Roteadores = nos da rede
+Os roteadores trocam pacotes de roteamento via sockets UDP
+Os nos executam Bellman-Ford distribuido para computar as tabelas de roteamento
+
+* O programa recebe um ID ao executar o programa na linha de comando
+esse ID eh o identificador do roteador
+
+Carregamento das cfg's a partir de arquivos .config
+    - enlaces.config = informacoes sobre os enlaces entre os nos
+    - roteador.config = informacoes sobre as portas UDP para comunicacao
+
+# Cada no conhece apenas os seus vizinhos adjacentes e seus custos de distancia
+# Os nos devem trocar informacoes de roteamento periodicamente para atualizar rotas
+# As tabelas de roteamento convergem apos um determinado tempo, assumindo uma rede conectada
+
+* A qualquer momento os roteadores podem ser ativados ou desativados, o roteamento
+deve se adaptar a estas situacoes. Percendo o problema da contagem ao infinito.
+
+* Apos cada atualizacao da tabela de rotas, o roteador deve retornar a tabela no
+console com o timestamp da mudanca.
+* O roteador deve tambem apresentar uma mensagem ao receber e ao enviar pacotes.
+
+** Incluir a opcao de envio de msg de texto (limitadas a 100 chars) para qualquer
+roteador da rede. A msg deve ser roteada da origem ate o destino segundo a rota
+computada pelos roteadores.
+** Da origem ate o destino, qualquer roteador encaminhando o pacote deve apresentar
+uma msg na tela (ex: Roteador X encaminhando msg com # sequencia N para destino Y)
+
+// Etapas
+
+Etapa 1
+	Cada roteador sera simulado via uma aplicacao multithread que se comunica
+com outras instancias da mesma aplicacao (outros roteadores).
+	Definindo pelo menos, as seguintes estruturas de dados:
+		- Struct para armazenas as msg de controle
+			(trocadas pelo algo de roteamento)
+		- Tipo de Msg: controle ou dados
+		- Enderecoes do roteador fonte e roteador destino
+		- Carga da mensagem (payload): os dados transportados pela msg/pct
+			* se for do algo de roteamento, trata-se de um vetor distancia
+			* caso contrario, sera uma msg de dados da aplicacao (string de chars)
+		- Fila de entrada: armazenar temporariamente tds as msg recebidas
+		- Filda de saida: contem as msgs a serem encaminhadas para os vizinhos
+
+	# sempre que houver compartilhamento de dados entre threads (acesso as filas)
+	deve-se tratar o acesso concorrente corretamente (empregando mutexes)
+
+** Desenvolver um aplicacao multithread (no minimo 4 threads)
+* Receiver:
+	responsavel por processar as msg recebidas dos vizinhos
+* Sender:
+	responsavel por envias as msgs para outros nos vizinhos
+* Packet Handler:
+	responsavel por processar as msg localmente
+		// msg de roteamento por Bellman-Ford
+		// msg de dados devem ser processador adequadamente
+			\\ caso o roteador atual seja o destino, GG
+			\\ caso n, passa pro proximo
+* Terminal:
+	dedicada ao terminal utilizado pelo usuario
+	// deve haver um menu de operacoes para interacao do usuario
+
+Funcionalidades/Servicos
+	- configuracao inicial do roteador a partir dos arqs de cfg
+		\\ envolve criar e inicializar o socket de cada no
+	- via terminal, implementar a opcao de envio de uma msg para o no vizinho
+		\\ apresentando o conteudo da msg na recepcao da mesma
+
+Etapa 2
+    Definir as estruturas de dados correspondentes ao vetor distancia
+	- os vetores distancia recebidos de cada no devem ser mantidos na memoria
+	enquanto o vizinho estiver ativo/alcancavel
+    Definir a estrutura da tabela de roteamento
+
+Funcionalidades/servicos
+	Envio do vetor distancia aos roteadores vizinhos
+		O no deve enviar periodicamente o vetor distancia a cada um de seus
+			vizinhos (esse tempo deve ser configuravel pelo usuario)
+		Ao enviar e receber um vetor distancia, apresentar o conteudo na tela
+			do roteador (tbm pode ser implementado como uma opcao no menu,
+			principalm onde o user seleciona o opcao de visualizar os
+			ultimos vetores distancia recebidos dos vizinhos)
+
+Etapa 3
+Funcionalidades/servicos
+	Processamento do vetor distancia com o protocolo Bellman-ford
+	toda vez q tiver algumas alteracao no vetor distancia local, deve-se enviar
+	um novo vetor atualizado para cada um dos nos vizinhos
+	
+	Envio de msg de dados para qualquer roteador destino, apresentando
+	no terminal todos os nos envolvidos

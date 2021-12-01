@@ -1,9 +1,16 @@
 #include "stdio.h"
-#include "aux.h"
+#include "stdlib.h"
+
+// My custom functions
+#include "load_config.h"
+
+// Configuration files path
+#define enlaces_cfg "./cfg/enlaces.config"
+#define roteador_cfg "./cfg/roteador.config"
 
 int main(int argc, char const *argv[]) {
-  printf("asdasd\n");
-  // `asd` comes from aux.h
-  printf("%d\n", asd);
+  parse_file(enlaces_cfg);
+  parse_file(roteador_cfg);
+  printf("\n*** Fim do programa ***\n");
   return 0;
-}
+};
