@@ -10,7 +10,7 @@ dev() {
   fi
 
   # Compile source code and run main
-  gcc -Wall -o $BIN_FOLDER/main $SRC_FOLDER/*.c && ./$BIN_FOLDER/main
+  gcc -Wall -o $BIN_FOLDER/main $SRC_FOLDER/*.c && ./$BIN_FOLDER/main $1
 }
 
-clear && dev
+clear && dev $1
