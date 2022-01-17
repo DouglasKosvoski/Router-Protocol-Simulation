@@ -27,41 +27,52 @@ void parse_line(char *buff, const char delim[1], char *ori, char *dest, char *co
   }
 }
 
-// Reads file line-by-line
-void parse_file(char filename[], int rid) {
+void parse_enlaces_config(char filename[], int rid, char *v) {
   FILE* filePointer;
   int buffer_size = 255;
   char buffer[buffer_size];
   filePointer = fopen(filename, "r");
 
+  char asd[50] = "";
   // Loops through the lines
-  printf("\nReading file: %s\n", filename);
   while(fgets(buffer, buffer_size, filePointer)) {
     // check if line contains valid `id, id, cost` format
     char ori[20], dest[20], cost[20];
-
     if (!startswith(buffer, "//") && !startswith(buffer, "\n")) {
       // split buffer at delimiter and convert to int
       parse_line(buffer, " ", ori, dest, cost);
-      if (atoi(ori) == rid || atoi(dest) == rid) {
-        printf("%s %s %s", ori, dest, cost);
+      // remove new line
+      cost[strlen(cost) - 1] = 0;
+
+      if (atoi(ori) == rid) {
+        strcat(asd, dest);
+        strcat(asd, " ");
+        strcat(asd, cost);
+        strcat(asd, " ");
+      }
+      else if(atoi(dest) == rid) {
+        strncat(asd, ori, 2);
+        strncat(asd, " ", 1);
+        strncat(asd, cost, 3);
+        strncat(asd, " ", 1);
       }
     }
   }
   fclose(filePointer);
+  // v = asd;
+  strcpy(v, asd);
+  // printf("%s\n", asd);
+  // printf("%s\n", v);
 }
 
+// Set router data as port and ip address
 void parse_router_config(char filename[], int rid, int *port, char ip[20]) {
   FILE* filePointer;
   int buffer_size = 255;
   char buffer[buffer_size];
   filePointer = fopen(filename, "r");
 
-  // Loops through the lines
-  printf("\nReading file: %s\n", filename);
-  printf("Searching for router #%d...\n", rid);
   int found = 0;
-
   while(fgets(buffer, buffer_size, filePointer)) {
     char id[20], temp_port[20], temp_ip[20];
 
@@ -71,14 +82,11 @@ void parse_router_config(char filename[], int rid, int *port, char ip[20]) {
       if (atoi(id) == rid) {
         *port = atoi(temp_port);
         strcpy(ip, temp_ip);
-        printf("Found... port: %d ip: %d\n", atoi(temp_port), atoi(temp_ip));
         found = 1;
         break;
       }
     }
   }
   fclose(filePointer);
-  if (found == 0) {
-    printf("No data found for rounter `%d`\n", rid);
-  }
+  if (found == 0) printf("No data found for router `%d`\n", rid);
 }

@@ -8,47 +8,109 @@
 #include "unistd.h"
 
 // My custom functions
+#include "neighbour.h"
+#include "router.h"
 #include "load_config.h"
 
 // Configuration files path
 #define enlaces_cfg "./cfg/enlaces.config"
 #define roteador_cfg "./cfg/roteador.config"
 
-typedef struct router {
-  pid_t id;
-  pid_t process_id;
-  pid_t parent_id;
-  int port;
-  char ip[20];
-} Router;
-
-int main(int argc, char const *argv[]) {
-  if (argc < 2) {
+// Check if router id was passed on execution
+int args_passed(int args) {
+  if (args < 2) {
     printf("Router Id expected !!!\n");
     return -1;
   }
+  return 0;
+}
 
-  Router *r1 = malloc(sizeof(Router));
+// Display information about the router
+void display_router_info(Router *r) {
+  printf("\n----------- INFO -----------\n");
+  printf("Router  id   : %13d \n", r->id);
+  printf("Process id   : %13d \n", r->process_id);
+  printf("Parent pid   : %13d \n", r->parent_id);
+  printf("Port         : %13d \n", r->port);
+  printf("IP addr      :     %s",  r->ip);
+  printf("----------------------------\n\n");
+}
+
+// Parse router config from cfg
+void set_router_data(Router *r, const char *i) {
   // Id passed via argument on execution
-  r1->id = atoi(argv[1]);
+  r->id = atoi(i);
   // Get own process id
-  r1->process_id = getpid();
+  r->process_id = getpid();
   // Get parent process id
-  r1->parent_id = getppid();
-
+  r->parent_id = getppid();
 
   // set port and ip
-  parse_router_config(roteador_cfg, r1->id, &r1->port, r1->ip);
+  parse_router_config(roteador_cfg, r->id, &r->port, r->ip);
+}
 
-  printf("Router  id: %10d\n", r1->id);
-  printf("Process id: %10d\n", r1->process_id);
-  printf("Parent pid: %10d\n", r1->parent_id);
-  printf("Port      : %10d\n", r1->port);
-  printf("Ip addr   :  %s\n",  r1->ip);
+int main(int argc, char const *argv[]) {
+  // check if id was passed as argument
+  if (args_passed(argc) == -1) return -1;
+
+  Router *r1 = malloc(sizeof(Router));
+
+  set_router_data(r1, argv[1]);
+
+  display_router_info(r1);
+
+  ////////////////
+  char s[20];
+  parse_enlaces_config(enlaces_cfg, r1->id, s);
+
+  char temp[20]; strcpy(temp, s);
+
+  char *token = strtok(temp, " ");
+  Neighbour *n1 = malloc(sizeof(Neighbour));
+  Neighbour *n2 = malloc(sizeof(Neighbour));
+  Neighbour *n3 = malloc(sizeof(Neighbour));
+  r1->neighbours[0] = *n1;
+  r1->neighbours[1] = *n2;
+  int counter = 0;
+
+  while(token != NULL) {
+    printf("c:%d %d\n", counter, atoi(token));
 
 
-  // parse_file(enlaces_cfg, r1->id);
-  // parse_file(roteador_cfg, r1->id);
+    if (counter == 0) {
+      n1->id = atoi(token);
+    }
+    else if (counter == 1) {
+      n1->cost = atoi(token);
+    }
+    else if (counter == 2) {
+      n2->id = atoi(token);
+    }
+    else if (counter == 3) {
+      n2->cost = atoi(token);
+    }
+
+    counter++;
+    token = strtok(NULL, " ");
+  }
+  printf("\n");
+  printf("%d\n", r1->neighbours[0].id);
+  printf("%d\n", r1->neighbours[0].cost);
+  printf("%d\n", r1->neighbours[1].id);
+  printf("%d\n", r1->neighbours[1].cost);
+  //////////////
+
+  // get_neighbours_data(enlaces_cfg, r1->id);
+
+  // // Create threads
+  // pthread_create(&Thread1, NULL, server, NULL);
+  // pthread_create(&Thread2, NULL, client, NULL);
+  //
+  // // Join threads
+  // pthread_join(Thread1, NULL);
+  // printf("Thread ID: %ld returned\n", Thread1);
+  // pthread_join(Thread2, NULL);
+  // printf("Thread ID: %ld returned\n", Thread2);
 
   printf("\n*** Fim do programa ***\n");
   return 0;
