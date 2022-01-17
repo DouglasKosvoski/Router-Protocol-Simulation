@@ -62,42 +62,27 @@ int main(int argc, char const *argv[]) {
   ////////////////
   char s[20];
   parse_enlaces_config(enlaces_cfg, r1->id, s);
-
   char temp[20]; strcpy(temp, s);
-
   char *token = strtok(temp, " ");
-  Neighbour *n1 = malloc(sizeof(Neighbour));
-  Neighbour *n2 = malloc(sizeof(Neighbour));
-  Neighbour *n3 = malloc(sizeof(Neighbour));
-  r1->neighbours[0] = *n1;
-  r1->neighbours[1] = *n2;
+
   int counter = 0;
-
   while(token != NULL) {
-    printf("c:%d %d\n", counter, atoi(token));
-
-
-    if (counter == 0) {
-      n1->id = atoi(token);
-    }
-    else if (counter == 1) {
-      n1->cost = atoi(token);
-    }
-    else if (counter == 2) {
-      n2->id = atoi(token);
-    }
-    else if (counter == 3) {
-      n2->cost = atoi(token);
-    }
-
     counter++;
     token = strtok(NULL, " ");
   }
-  printf("\n");
-  printf("%d\n", r1->neighbours[0].id);
-  printf("%d\n", r1->neighbours[0].cost);
-  printf("%d\n", r1->neighbours[1].id);
-  printf("%d\n", r1->neighbours[1].cost);
+
+  Neighbour *n1 = malloc(sizeof(Neighbour));
+  Neighbour *n2 = malloc(sizeof(Neighbour));
+  r1->neighbours[0] = n1;
+  r1->neighbours[1] = n2;
+  sscanf(s, "%d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost);
+  printf("%d %d %d %d\n", n1->id, n1->cost, n2->id, n2->cost);
+
+  printf("%d\n", r1->neighbours[0]->id);
+  printf("%d\n", r1->neighbours[0]->cost);
+  printf("%d\n", r1->neighbours[1]->id);
+  printf("%d\n", r1->neighbours[1]->cost);
+
   //////////////
 
   // get_neighbours_data(enlaces_cfg, r1->id);
