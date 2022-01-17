@@ -52,9 +52,9 @@ void parse_enlaces_config(char filename[], int rid, char *v) {
       }
       else if(atoi(dest) == rid) {
         strncat(asd, ori, 2);
-        strncat(asd, " ", 1);
+        strncat(asd, " ", 2);
         strncat(asd, cost, 3);
-        strncat(asd, " ", 1);
+        strncat(asd, " ", 2);
       }
     }
   }
