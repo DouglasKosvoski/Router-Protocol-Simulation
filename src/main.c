@@ -37,7 +37,7 @@ void display_router_info(Router *r) {
 }
 
 // Parse router config from cfg
-void set_router_data(Router *r, const char *i) {
+int set_router_data(Router *r, const char *i) {
   // Id passed via argument on execution
   r->id = atoi(i);
   // Get own process id
@@ -46,7 +46,7 @@ void set_router_data(Router *r, const char *i) {
   r->parent_id = getppid();
 
   // set port and ip
-  parse_router_config(roteador_cfg, r->id, &r->port, r->ip);
+  return parse_router_config(roteador_cfg, r->id, &r->port, r->ip);
 }
 
 int main(int argc, char const *argv[]) {
@@ -55,7 +55,7 @@ int main(int argc, char const *argv[]) {
 
   Router *r1 = malloc(sizeof(Router));
 
-  set_router_data(r1, argv[1]);
+  if (set_router_data(r1, argv[1]) == -1) return -1;
 
   display_router_info(r1);
 
@@ -73,15 +73,19 @@ int main(int argc, char const *argv[]) {
 
   Neighbour *n1 = malloc(sizeof(Neighbour));
   Neighbour *n2 = malloc(sizeof(Neighbour));
+  Neighbour *n3 = malloc(sizeof(Neighbour));
   r1->neighbours[0] = n1;
   r1->neighbours[1] = n2;
-  sscanf(s, "%d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost);
-  printf("%d %d %d %d\n", n1->id, n1->cost, n2->id, n2->cost);
+  r1->neighbours[2] = n3;
+  sscanf(s, "%d %d %d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost, &n3->id, &n3->cost);
+  printf("%d %d %d %d %d %d\n", n1->id, n1->cost, n2->id, n2->cost, n3->id, n3->cost);
 
   printf("%d\n", r1->neighbours[0]->id);
-  printf("%d\n", r1->neighbours[0]->cost);
+  printf("c:%d\n", r1->neighbours[0]->cost);
   printf("%d\n", r1->neighbours[1]->id);
-  printf("%d\n", r1->neighbours[1]->cost);
+  printf("c:%d\n", r1->neighbours[1]->cost);
+  printf("%d\n", r1->neighbours[2]->id);
+  printf("c:%d\n", r1->neighbours[2]->cost);
 
   //////////////
 

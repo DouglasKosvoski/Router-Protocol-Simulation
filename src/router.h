@@ -4,5 +4,5 @@ typedef struct Router {
   pid_t parent_id;
   int port;
   char ip[20];
-  struct Neighbour *neighbours[2];
+  struct Neighbour *neighbours[3];
 } Router;
