@@ -59,14 +59,11 @@ void parse_enlaces_config(char filename[], int rid, char *v) {
     }
   }
   fclose(filePointer);
-  // v = asd;
   strcpy(v, asd);
-  // printf("%s\n", asd);
-  // printf("%s\n", v);
 }
 
 // Set router data as port and ip address
-int parse_router_config(char filename[], int rid, int *port, char ip[20]) {
+void parse_router_config(char filename[], int rid, int *port, char ip[20]) {
   FILE* filePointer;
   int buffer_size = 255;
   char buffer[buffer_size];
@@ -90,7 +87,6 @@ int parse_router_config(char filename[], int rid, int *port, char ip[20]) {
   fclose(filePointer);
   if (found == 0) {
     printf("No data found for router `%d`\n", rid);
-    return -1;
+    exit(1);
   }
-  return 0;
 }

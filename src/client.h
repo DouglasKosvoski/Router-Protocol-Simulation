@@ -9,11 +9,6 @@
 #define PORT 8888   //The port on which to send data
 pthread_t Thread1, Thread2;
 
-void die(char *s) {
-  perror(s);
-  exit(1);
-}
-
 void client() {
   struct sockaddr_in si_other;
   int s, i, slen = sizeof(si_other);
