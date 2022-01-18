@@ -1,11 +1,16 @@
-// printf
-#include "stdio.h"
-// atoi
-#include "stdlib.h"
-// pid_t
-#include "sys/types.h"
-// getpid()
-#include "unistd.h"
+/*
+* Author `Douglas Kosvoski`
+* Class `Redes de Computadores 2021.2`
+*
+* Router protocol simulation via UDP sockets
+* and Distributed Bellman-Ford Algorithm
+*
+*/
+
+#include "stdio.h"      // printf
+#include "stdlib.h"     // atoi
+#include "sys/types.h"  // pid_t
+#include "unistd.h"     // getpid()
 
 // My custom functions
 #include "neighbour.h"
@@ -15,6 +20,41 @@
 // Configuration files path
 #define enlaces_cfg "./cfg/enlaces.config"
 #define roteador_cfg "./cfg/roteador.config"
+
+// Function declarations
+int args_passed(int args);
+void display_router_info(Router *r);
+int set_router_data(Router *r, const char *i);
+void set_neighbours(Router *r);
+
+int main(int argc, char const *argv[]) {
+  // check if id was passed as argument
+  if (args_passed(argc) == -1) return -1;
+
+  // allocate router
+  Router *r1 = malloc(sizeof(Router));
+
+  if (set_router_data(r1, argv[1]) == -1) return -1;
+
+  // print some info onto the terminal, id, ip, port, pid
+  display_router_info(r1);
+
+  // allocate and attach neighbours to router
+  set_neighbours(r1);
+
+  // // Create threads
+  // pthread_create(&Thread1, NULL, server, NULL);
+  // pthread_create(&Thread2, NULL, client, NULL);
+  //
+  // // Join threads
+  // pthread_join(Thread1, NULL);
+  // printf("Thread ID: %ld returned\n", Thread1);
+  // pthread_join(Thread2, NULL);
+  // printf("Thread ID: %ld returned\n", Thread2);
+
+  printf("\n*** Fim do programa ***\n");
+  return 0;
+};
 
 // Check if router id was passed on execution
 int args_passed(int args) {
@@ -49,19 +89,10 @@ int set_router_data(Router *r, const char *i) {
   return parse_router_config(roteador_cfg, r->id, &r->port, r->ip);
 }
 
-int main(int argc, char const *argv[]) {
-  // check if id was passed as argument
-  if (args_passed(argc) == -1) return -1;
-
-  Router *r1 = malloc(sizeof(Router));
-
-  if (set_router_data(r1, argv[1]) == -1) return -1;
-
-  display_router_info(r1);
-
-  ////////////////
+// Allocate and attach neighbours to router
+void set_neighbours(Router *r) {
   char s[20];
-  parse_enlaces_config(enlaces_cfg, r1->id, s);
+  parse_enlaces_config(enlaces_cfg, r->id, s);
   char temp[20]; strcpy(temp, s);
   char *token = strtok(temp, " ");
 
@@ -71,36 +102,14 @@ int main(int argc, char const *argv[]) {
     token = strtok(NULL, " ");
   }
 
+  // alloc Neighbours in memory
   Neighbour *n1 = malloc(sizeof(Neighbour));
   Neighbour *n2 = malloc(sizeof(Neighbour));
   Neighbour *n3 = malloc(sizeof(Neighbour));
-  r1->neighbours[0] = n1;
-  r1->neighbours[1] = n2;
-  r1->neighbours[2] = n3;
+  // attach neighbours to router
+  r->neighbours[0] = n1;
+  r->neighbours[1] = n2;
+  r->neighbours[2] = n3;
+  // set neighbours data
   sscanf(s, "%d %d %d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost, &n3->id, &n3->cost);
-  printf("%d %d %d %d %d %d\n", n1->id, n1->cost, n2->id, n2->cost, n3->id, n3->cost);
-
-  printf("%d\n", r1->neighbours[0]->id);
-  printf("c:%d\n", r1->neighbours[0]->cost);
-  printf("%d\n", r1->neighbours[1]->id);
-  printf("c:%d\n", r1->neighbours[1]->cost);
-  printf("%d\n", r1->neighbours[2]->id);
-  printf("c:%d\n", r1->neighbours[2]->cost);
-
-  //////////////
-
-  // get_neighbours_data(enlaces_cfg, r1->id);
-
-  // // Create threads
-  // pthread_create(&Thread1, NULL, server, NULL);
-  // pthread_create(&Thread2, NULL, client, NULL);
-  //
-  // // Join threads
-  // pthread_join(Thread1, NULL);
-  // printf("Thread ID: %ld returned\n", Thread1);
-  // pthread_join(Thread2, NULL);
-  // printf("Thread ID: %ld returned\n", Thread2);
-
-  printf("\n*** Fim do programa ***\n");
-  return 0;
-};
+}
