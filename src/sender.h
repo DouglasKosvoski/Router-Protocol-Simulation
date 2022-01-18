@@ -1,4 +1,4 @@
-void *receiver(Router *r) {
+void *sender(Router *r) {
   struct sockaddr_in si_me, si_other;
   int udp_socket, recv_len, slen = sizeof(si_other);
   char buffer[r->buffer_length];
@@ -34,7 +34,7 @@ void *receiver(Router *r) {
     printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
     printf("Data: %s\n", buffer);
 
-    //now reply the client with the same data
+    // now reply the client with the same data
     if (sendto(udp_socket, buffer, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1) exit(1);
   }
   pclose(udp_socket);

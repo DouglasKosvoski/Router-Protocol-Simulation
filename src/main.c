@@ -22,41 +22,12 @@
 #include "router.h"
 #include "load_config.h"
 #include "message.h"
-#include "server.h"
+#include "receiver.h"
+#include "sender.h"
 
 /* Configuration files */
 #define enlaces_cfg "./cfg/enlaces.config"
 #define roteador_cfg "./cfg/roteador.config"
-
-/* Declarations */
-void check_arguments(int args);
-void display_router_info(Router *r);
-void set_router(Router *r, const char *i);
-void set_neighbours(Router *r);
-
-/* Main */
-int main(int argc, char const *argv[]) {
-  // check if id was passed as argument
-  check_arguments(argc);
-
-  // allocate router and threads
-  Router *r1 = malloc(sizeof(Router));
-
-  // set buffer
-  set_router(r1, argv[1]);
-  // print some info onto the terminal, id, ip, port, pid
-  display_router_info(r1);
-
-  // Create threads
-  pthread_t Thread1, Thread2, Thread3, Thread4;
-  pthread_create(&Thread1, NULL, receiver, r1);
-  // Join threads
-  pthread_join(Thread1, NULL);
-  printf("Thread ID: %ld returned\n", Thread1);
-
-  printf("\n*** Fim do programa ***\n");
-  exit(0);
-};
 
 /* Functions */
 
@@ -67,6 +38,22 @@ void check_arguments(int args) {
     printf("Ex: `./router 4` \n\n");
     exit(1);
   }
+}
+
+// Allocate and attach neighbours to router
+void set_neighbours(Router *r) {
+  // if router does not have 3 neighbours
+  // unused Neighbour will be set to id=0 and cost=0
+  char s[20];
+  parse_enlaces_config(enlaces_cfg, r->id, s);
+
+  // alloc Neighbours in memory
+  Neighbour *n1 = malloc(sizeof(Neighbour));
+  Neighbour *n2 = malloc(sizeof(Neighbour));
+  Neighbour *n3 = malloc(sizeof(Neighbour));
+  // set and attach neighbours to router
+  r->neighbours[0] = n1; r->neighbours[1] = n2; r->neighbours[2] = n3;
+  sscanf(s, "%d %d %d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost, &n3->id, &n3->cost);
 }
 
 // Parse router config from cfg
@@ -85,23 +72,6 @@ void set_router(Router *r, const char *i) {
   set_neighbours(r);
 }
 
-// Allocate and attach neighbours to router
-void set_neighbours(Router *r) {
-  // if router does not have 3 neighbours
-  // unused Neighbour will be set to id=0 and cost=0
-  char s[20];
-  parse_enlaces_config(enlaces_cfg, r->id, s);
-
-  // alloc Neighbours in memory
-  Neighbour *n1 = malloc(sizeof(Neighbour));
-  Neighbour *n2 = malloc(sizeof(Neighbour));
-  Neighbour *n3 = malloc(sizeof(Neighbour));
-  // attach neighbours to router
-  r->neighbours[0] = n1; r->neighbours[1] = n2; r->neighbours[2] = n3;
-  // set neighbours data
-  sscanf(s, "%d %d %d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost, &n3->id, &n3->cost);
-}
-
 // Display information about the router
 void display_router_info(Router *r) {
   printf("\n----------- INFO -----------\n");
@@ -113,3 +83,31 @@ void display_router_info(Router *r) {
   printf("IP addr      :     %s",  r->ip);
   printf("----------------------------\n\n");
 }
+
+/* Main */
+int main(int argc, char const *argv[]) {
+  // check if id was passed as argument
+  check_arguments(argc);
+
+  // allocate router and threads
+  Router *r1 = malloc(sizeof(Router));
+
+  // set buffer
+  set_router(r1, argv[1]);
+  // print some info onto the terminal, id, ip, port, pid
+  display_router_info(r1);
+
+  // Create threads
+  pthread_t th_receiver, th_sender, th_packet_handler, th_terminal;
+  pthread_create(&th_receiver, NULL, (void *)receiver, r1);
+  pthread_create(&th_sender, NULL, (void *)sender, r1);
+
+  // Join threads
+  pthread_join(th_receiver, NULL);
+  pthread_join(th_sender, NULL);
+  printf("Thread ID: %ld returned\n", th_receiver);
+  printf("Thread ID: %ld returned\n", th_sender);
+
+  printf("\n*** Fim do programa ***\n");
+  exit(0);
+};
