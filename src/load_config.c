@@ -1,4 +1,12 @@
-#include "string.h"
+#include <stdio.h>      // input/output
+#include <stdlib.h>     // data convertions
+#include <sys/types.h>  // data types
+#include <unistd.h>     // constant and types
+#include <string.h>
+
+void ddd() {
+  printf("LOASD\n");
+}
 
 // Check if string starts with a specific sufix
 int startswith(const char *original, const char *sufix) {
