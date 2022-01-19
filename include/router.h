@@ -3,7 +3,7 @@ typedef struct Router {
   pid_t id;
   pid_t pid;
   pid_t parent_pid;
-  unsigned int port;
-  unsigned short buffer_length;
+  int port;
+  int buffer_length;
   struct Neighbour *neighbours[3];
 } Router;

@@ -4,10 +4,6 @@
 #include <unistd.h>     // constant and types
 #include <string.h>
 
-void ddd() {
-  printf("LOASD\n");
-}
-
 // Check if string starts with a specific sufix
 int startswith(const char *original, const char *sufix) {
    if(strncmp(original, sufix, strlen(sufix)) == 0) {

@@ -1,4 +1,5 @@
-void *sender(Router *r) {
+void *sender(void *data) {
+  Router *r = data;
   struct sockaddr_in si_me, si_other;
   int udp_socket, recv_len, slen = sizeof(si_other);
   char buffer[r->buffer_length];
