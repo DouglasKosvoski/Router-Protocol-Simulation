@@ -16,8 +16,7 @@
 #include <arpa/inet.h>  // internet operations
 #include <sys/socket.h> // sockets definitions
 #include <pthread.h>    // thread manipulation
-#include <string.h>
-#include <ctype.h>
+#include <string.h>     // string manipulation
 
 /* Custom structures and functions*/
 #include "load_config.h"
@@ -28,10 +27,42 @@
 /* Configuration files */
 #define enlaces_cfg "./cfg/enlaces.config"
 #define roteador_cfg "./cfg/roteador.config"
-#define SERVER "127.0.0.1"
-#define PORT 8888
 
 /* Functions */
+void check_arguments(int args);
+void set_neighbours(Router *r);
+void set_router(Router *r, const char *i);
+void display_router_info(Router *r);
+void *sender(void *data);
+void *receiver(void *data);
+
+/* Main */
+int main(int argc, char const *argv[]) {
+  // check if id was passed as argument
+  check_arguments(argc);
+
+  // allocate router and threads
+  Router *r1 = malloc(sizeof(Router));
+
+  // set buffer
+  set_router(r1, argv[1]);
+  // print some info onto the terminal, id, ip, port, pid
+  display_router_info(r1);
+
+  // Create threads
+  pthread_t th_receiver, th_sender; //, th_packet_handler, th_terminal
+  pthread_create(&th_receiver, NULL, (void *)receiver, r1);
+  pthread_create(&th_sender, NULL, (void *)sender, r1);
+
+  // Join threads
+  pthread_join(th_receiver, NULL);
+  pthread_join(th_sender, NULL);
+  printf("Thread ID: %ld returned\n", th_receiver);
+  printf("Thread ID: %ld returned\n", th_sender);
+
+  printf("\n*** Fim do programa ***\n");
+  exit(0);
+};
 
 // Check if router id was passed on execution
 void check_arguments(int args) {
@@ -88,38 +119,38 @@ void display_router_info(Router *r) {
 
 void *sender(void *data) {
   Router *r = data;
-  char buffer[1024];
-  int port = 7891;
+  char buffer[r->buffer_length];
+  int port = 25001;
+
   /*Create UDP socket*/
   int clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
+
   /*Configure settings in address struct*/
   struct sockaddr_in serverAddr;
   serverAddr.sin_family = AF_INET;
-  // essa porta pode ser dinamica
   serverAddr.sin_port = htons(port);
-  serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  serverAddr.sin_addr.s_addr = inet_addr(r->ip);
   memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
   /*Initialize size variable to be used later on*/
   socklen_t addr_size = sizeof serverAddr;
 
   while(1) {
-    printf("S: Type a sentence to send to server: ");
-    fgets(buffer, 1024, stdin);
-    printf("S: You typed: %s", buffer);
+    printf("client - Type a sentence to send to server: ");
+    fgets(buffer, r->buffer_length, stdin);
     int nBytes = strlen(buffer) + 1;
 
     /*Send message to server*/
     sendto(clientSocket, buffer, nBytes, 0, (struct sockaddr *)&serverAddr, addr_size);
-    printf("S: Sending msg...\n");
+    printf("client - Sending msg: %s", buffer);
     /*Receive message from server*/
-    nBytes = recvfrom(clientSocket, buffer, 1024, 0, NULL, NULL);
-    printf("S: Received from server: 127.0.0.1 (%d) %s\n", port, buffer);
+    nBytes = recvfrom(clientSocket, buffer, r->buffer_length, 0, NULL, NULL);
+    printf("client - Received from server: 127.0.0.1 (%d) %s", port, buffer);
   }
 }
 
 void *receiver(void *data) {
   Router *r = data;
-  char buffer[1024];
+  char buffer[r->buffer_length];
   struct sockaddr_in serverAddr, clientAddr;
   struct sockaddr_storage serverStorage;
 
@@ -127,8 +158,8 @@ void *receiver(void *data) {
   int udp_socket = socket(PF_INET, SOCK_DGRAM, 0);
   /*Configure settings in address struct*/
   serverAddr.sin_family = AF_INET;
-  serverAddr.sin_port = htons(7891);
-  serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  serverAddr.sin_port = htons(r->port);
+  serverAddr.sin_addr.s_addr = inet_addr(r->ip);
   memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
 
   /*Bind socket with address struct*/
@@ -139,39 +170,11 @@ void *receiver(void *data) {
   while(1) {
     /* Try to receive any incoming UDP datagram. Address and port of
     requesting client will be stored on serverStorage variable */
-    int nBytes = recvfrom(udp_socket, buffer, 1024, 0, (struct sockaddr *)&serverStorage, &addr_size);
-    printf("R: Received msg: %s\n", buffer);
+    int nBytes = recvfrom(udp_socket, buffer, r->buffer_length, 0, (struct sockaddr *)&serverStorage, &addr_size);
+    printf("server - Received msg: %s", buffer);
 
     /*Send message back to client, using serverStorage as the address*/
-    printf("R: Sending msg back to client %s\n", buffer);
+    printf("server - Sending msg back to client: %s", buffer);
     sendto(udp_socket, buffer, nBytes, 0, (struct sockaddr *)&serverStorage, addr_size);
   }
 }
-
-/* Main */
-int main(int argc, char const *argv[]) {
-  // check if id was passed as argument
-  check_arguments(argc);
-
-  // allocate router and threads
-  Router *r1 = malloc(sizeof(Router));
-
-  // set buffer
-  set_router(r1, argv[1]);
-  // print some info onto the terminal, id, ip, port, pid
-  display_router_info(r1);
-
-  // Create threads
-  pthread_t th_receiver, th_sender; //, th_packet_handler, th_terminal
-  pthread_create(&th_receiver, NULL, (void *)receiver, r1);
-  pthread_create(&th_sender, NULL, (void *)sender, r1);
-
-  // Join threads
-  pthread_join(th_receiver, NULL);
-  pthread_join(th_sender, NULL);
-  printf("Thread ID: %ld returned\n", th_receiver);
-  printf("Thread ID: %ld returned\n", th_sender);
-
-  printf("\n*** Fim do programa ***\n");
-  exit(0);
-};
