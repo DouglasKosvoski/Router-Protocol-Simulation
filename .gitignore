@@ -2,6 +2,7 @@
 *.d
 
 bin/
+obj/
 
 # Object files
 *.o
