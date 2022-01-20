@@ -1,9 +1,14 @@
-IDIR = include
+# C compiler
 CC = gcc
 CFLAGS = -Wall -I$(IDIR)
-ODIR = obj
-SRC = src
 LIBS = -lpthread
+
+# directory containing *.h
+IDIR = include
+# directory to store *.obj
+ODIR = obj
+# directory containing source code
+SRC = src
 
 
 _DEPS = router.h message.h neighbour.h load_config.h

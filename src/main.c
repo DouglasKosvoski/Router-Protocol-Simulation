@@ -163,7 +163,10 @@ void *receiver(void *data) {
   memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
 
   /*Bind socket with address struct*/
-  bind(udp_socket, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
+  if (bind(udp_socket, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) == -1) {
+    printf("Porta ja alocada\n");
+    exit(1);
+  };
   /*Initialize size variable to be used later on*/
   socklen_t addr_size = sizeof serverStorage;
 
