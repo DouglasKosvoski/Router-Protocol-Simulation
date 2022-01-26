@@ -17,12 +17,14 @@
 #include <sys/socket.h> // sockets definitions
 #include <pthread.h>    // thread manipulation
 #include <string.h>     // string manipulation
+#include <stdbool.h>
 
 /* Custom structures and functions*/
 #include "load_config.h"
 #include "neighbour.h"
 #include "router.h"
 #include "message.h"
+#include "queue.h"
 
 /* Configuration files */
 #define enlaces_cfg "./cfg/enlaces.config"
@@ -40,6 +42,16 @@ void *packet_handler();
 
 /* Main */
 int main(int argc, char const *argv[]) {
+  // Queue *entrada = malloc(sizeof(Queue)); init(entrada);
+  // add_to_queue(entrada, msg);
+  // printf("size: %d\n", queue_size(entrada));
+
+  // Message *msg = malloc(sizeof(Message));
+  // msg->type = 1;
+  // strcpy(msg->source, "salve");
+  // strcpy(msg->destination, "hello");
+  // strcpy(msg->payload, "alou laou");
+
   // check if id was passed as argument
   check_arguments(argc);
 
@@ -49,6 +61,8 @@ int main(int argc, char const *argv[]) {
   // set buffer
   set_router(r1, argv[1]);
   // print some info onto the terminal, id, ip, port, pid
+
+  // system("clear");
   display_router_info(r1);
 
   // Create threads
@@ -129,7 +143,6 @@ void *terminal(void *data) {
   Router *r = data;
 
   int option = -1;
-  system("clear");
   while (1) {
     printf("\n --------- Main Menu ---------");
     printf("\n * 1 - Send Message");
@@ -157,12 +170,13 @@ void *terminal(void *data) {
 }
 
 void *packet_handler() {
-  // printf("Salve2\n");
+  printf("Salve2\n");
 }
 
 void *sender(void *data) {
   Router *r = data;
   char buffer[r->buffer_length];
+  char vrau[r->buffer_length];
   int port = r->port;
   int temp = 0;
 
@@ -196,11 +210,18 @@ void *sender(void *data) {
     if (temp > 0) {
       int nBytes = strlen(buffer) + 1;
       /*Send message to server*/
-      sendto(clientSocket, buffer, nBytes, 0, (struct sockaddr *)&serverAddr, addr_size);
-      printf("\n Sending msg...", buffer);
-      /*Receive message from server*/
-      nBytes = recvfrom(clientSocket, buffer, r->buffer_length, 0, NULL, NULL);
-      // printf("\n client - Received from server: 127.0.0.1 (%d) %s", port, buffer);
+      sprintf(vrau, "%d", 0);
+      strncat(vrau, "_", 2);
+      strncat(vrau, r->ip, strlen(r->ip));
+      strncat(vrau, "_", 2);
+      strncat(vrau, r->ip, strlen(r->ip));
+      strncat(vrau, "_", 2);
+      strncat(vrau, buffer, strlen(buffer));
+
+      printf("TSC: `%s`%d\n", vrau, sizeof(vrau));
+
+      sendto(clientSocket, "0_227.0.0.1_127.0.0.1_salve", nBytes, 0, (struct sockaddr *)&serverAddr, addr_size);
+      printf("\n Sending msg...");
     }
     temp ++;
   }
@@ -232,9 +253,6 @@ void *receiver(void *data) {
     /* Try to receive any incoming UDP datagram. Address and port of
     requesting client will be stored on serverStorage variable */
     int nBytes = recvfrom(udp_socket, buffer, r->buffer_length, 0, (struct sockaddr *)&serverStorage, &addr_size);
-    printf("\n Received msg: %s", buffer);
-
-    /*Send message back to client, using serverStorage as the address*/
-    sendto(udp_socket, buffer, nBytes, 0, (struct sockaddr *)&serverStorage, addr_size);
+    printf("\n Received msg: `%s`", buffer);
   }
 }
