@@ -34,7 +34,7 @@ Once the repository is downloaded, enter its main folder.
 
 Within the root folder of the project there is a file named `makefile`. To run it simply:
 
-    $ makefile
+    $ make -f makefile
 
 ## Running the program
 To run the program, on the root folder of the program there will be an executable called `router`, run it normally as any other executable with:
@@ -42,7 +42,7 @@ To run the program, on the root folder of the program there will be an executabl
     $ ./router <id>
 
 <hr>
-### Explanation about the menu and message system
+# Explanation about the menus and message system goes HERE #
 <hr>
 
 ## Authors

@@ -13,4 +13,5 @@ typedef struct Router {
   int buffer_length;
   // router directly connecteds
   struct Neighbour *neighbours[3];
+
 } Router;

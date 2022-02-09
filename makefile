@@ -1,6 +1,6 @@
 # C compiler
 CC = gcc
-CFLAGS = -Wall -I$(IDIR)
+CFLAGS = -I$(IDIR)
 LIBS = -lpthread
 
 # directory containing *.h

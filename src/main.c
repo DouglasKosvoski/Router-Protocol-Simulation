@@ -8,6 +8,13 @@
 * 2022/1
 */
 
+/*
+* Known issues:
+* Router is sending the msg to itself (for now)
+* Incoming and Sending Queue are being implemented
+* Sent and received history are not implemented (yet)
+*/
+
 /* Includes */
 #include <stdio.h>      // input/output
 #include <stdlib.h>     // data convertions
@@ -42,16 +49,6 @@ void *packet_handler();
 
 /* Main */
 int main(int argc, char const *argv[]) {
-  // Queue *entrada = malloc(sizeof(Queue)); init(entrada);
-  // add_to_queue(entrada, msg);
-  // printf("size: %d\n", queue_size(entrada));
-
-  // Message *msg = malloc(sizeof(Message));
-  // msg->type = 1;
-  // strcpy(msg->source, "salve");
-  // strcpy(msg->destination, "hello");
-  // strcpy(msg->payload, "alou laou");
-
   // check if id was passed as argument
   check_arguments(argc);
 
@@ -60,26 +57,20 @@ int main(int argc, char const *argv[]) {
 
   // set buffer
   set_router(r1, argv[1]);
-  // print some info onto the terminal, id, ip, port, pid
 
-  // system("clear");
+  // print some info onto the terminal, id, ip, port, pid
+  system("clear");
   display_router_info(r1);
 
   // Create threads
-  pthread_t th_receiver, th_sender, th_packet_handler, th_terminal;
+  pthread_t th_receiver, th_terminal;
   pthread_create(&th_receiver, NULL, (void *)receiver, r1);
-  // pthread_create(&th_sender, NULL, (void *)sender, r1);
-  pthread_create(&th_packet_handler, NULL, (void *)packet_handler, NULL);
   pthread_create(&th_terminal, NULL, (void *)terminal, r1);
 
   // Join threads
   pthread_join(th_receiver, NULL);
-  // pthread_join(th_sender, NULL);
-  pthread_join(th_packet_handler, NULL);
   pthread_join(th_terminal, NULL);
   printf("Thread ID: %ld returned\n", th_receiver);
-  // printf("Thread ID: %ld returned\n", th_sender);
-  printf("Thread ID: %ld returned\n", th_packet_handler);
   printf("Thread ID: %ld returned\n", th_terminal);
 
   printf("\n*** Fim do programa ***\n");
@@ -129,14 +120,14 @@ void set_router(Router *r, const char *i) {
 
 // Display information about the router
 void display_router_info(Router *r) {
-  printf("\n----------- INFO -----------\n");
-  printf("Router  id   : %13d \n", r->id);
-  printf("Process id   : %13d \n", r->pid);
-  printf("Parent pid   : %13d \n", r->parent_pid);
-  printf("Buffer len   : %13d \n", r->buffer_length);
-  printf("Port         : %13d \n", r->port);
-  printf("IP addr      :     %s",  r->ip);
-  printf("----------------------------\n\n");
+  printf("\n ----------- INFO -----------\n");
+  printf(" Router  id   : %13d \n", r->id);
+  printf(" Process id   : %13d \n", r->pid);
+  printf(" Parent pid   : %13d \n", r->parent_pid);
+  printf(" Buffer len   : %13d \n", r->buffer_length);
+  printf(" Port         : %13d \n", r->port);
+  printf(" IP addr      :     %s",  r->ip);
+  printf(" ----------------------------\n\n");
 }
 
 void *terminal(void *data) {
@@ -144,12 +135,12 @@ void *terminal(void *data) {
 
   int option = -1;
   while (1) {
-    printf("\n --------- Main Menu ---------");
+    printf("\n --------- Main Menu --------");
     printf("\n * 1 - Send Message");
     printf("\n * 2 - See Sent History");
     printf("\n * 3 - See Received History");
     printf("\n * 0 - Exit");
-    printf("\n -----------------------------");
+    printf("\n ----------------------------");
     printf("\n option: ");
     scanf("%d", &option);
 
@@ -170,13 +161,15 @@ void *terminal(void *data) {
 }
 
 void *packet_handler() {
-  printf("Salve2\n");
 }
 
 void *sender(void *data) {
   Router *r = data;
   char buffer[r->buffer_length];
   char vrau[r->buffer_length];
+
+  printf("\n\n OBS: FOR NOW THE ROUTER IS SENDING THE MSG TO ITSELF !!!\n\n");
+
   int port = r->port;
   int temp = 0;
 
@@ -198,7 +191,7 @@ void *sender(void *data) {
     int ch, i = 0;
 
     if (temp > 0) {
-      system("clear");
+      // system("clear");
       printf("\n ------------ Send Msg ------------");
       printf("\n Type msg to send to: ");
     }
@@ -218,10 +211,8 @@ void *sender(void *data) {
       strncat(vrau, "_", 2);
       strncat(vrau, buffer, strlen(buffer));
 
-      printf("TSC: `%s`%d\n", vrau, sizeof(vrau));
-
-      sendto(clientSocket, "0_227.0.0.1_127.0.0.1_salve", nBytes, 0, (struct sockaddr *)&serverAddr, addr_size);
-      printf("\n Sending msg...");
+      sendto(clientSocket, buffer, nBytes, 0, (struct sockaddr *)&serverAddr, addr_size);
+      printf("\n Sending msg...\n");
     }
     temp ++;
   }
@@ -243,7 +234,7 @@ void *receiver(void *data) {
 
   /*Bind socket with address struct*/
   if (bind(udp_socket, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) == -1) {
-    printf("Porta ja alocada\n");
+    printf("Port Already Allocated\n");
     exit(1);
   };
   /*Initialize size variable to be used later on*/
@@ -253,6 +244,6 @@ void *receiver(void *data) {
     /* Try to receive any incoming UDP datagram. Address and port of
     requesting client will be stored on serverStorage variable */
     int nBytes = recvfrom(udp_socket, buffer, r->buffer_length, 0, (struct sockaddr *)&serverStorage, &addr_size);
-    printf("\n Received msg: `%s`", buffer);
+    printf("\n Received msg: %s", buffer);
   }
 }
