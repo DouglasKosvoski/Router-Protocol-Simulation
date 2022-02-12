@@ -39,13 +39,13 @@
 
 /* Functions */
 void check_arguments(int args);
-void set_neighbours(Router *r);
 void set_router(Router *r, const char *i);
 void display_router_info(Router *r);
 void *sender(void *data);
 void *receiver(void *data);
 void *terminal(void *data);
 void *packet_handler();
+void display_neighbours_info(Router *r);
 
 /* Main */
 int main(int argc, char const *argv[]) {
@@ -86,22 +86,6 @@ void check_arguments(int args) {
   }
 }
 
-// Allocate and attach neighbours to router
-void set_neighbours(Router *r) {
-  // if router does not have 3 neighbours
-  // unused Neighbour will be set to id=0 and cost=0
-  char s[20];
-  parse_enlaces_config(enlaces_cfg, r->id, s);
-
-  // alloc Neighbours in memory
-  Neighbour *n1 = malloc(sizeof(Neighbour));
-  Neighbour *n2 = malloc(sizeof(Neighbour));
-  Neighbour *n3 = malloc(sizeof(Neighbour));
-  // set and attach neighbours to router
-  r->neighbours[0] = n1; r->neighbours[1] = n2; r->neighbours[2] = n3;
-  sscanf(s, "%d %d %d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost, &n3->id, &n3->cost);
-}
-
 // Parse router config from cfg
 void set_router(Router *r, const char *i) {
   // id passed via argument on execution, convert to int
@@ -112,10 +96,32 @@ void set_router(Router *r, const char *i) {
   r->parent_pid = getppid();
   // set max buffer lenght for transfer
   r->buffer_length = 512;
+
   // set port and ip
-  parse_router_config(roteador_cfg, r->id, &r->port, r->ip);
+  if (parse_router_config(roteador_cfg, r->id, &r->port, r->ip) == -1) {
+    printf("Router not Found!\n");
+    exit(-1);
+  }
+
   // allocate and attach neighbours to router
-  set_neighbours(r);
+  // if router does not have 3 neighbours
+  // unused Neighbour will be set to id=0 and cost=0
+  char s[20];
+  parse_enlaces_config(enlaces_cfg, r->id, s);
+  // alloc Neighbours in memory
+  Neighbour *n1 = malloc(sizeof(Neighbour));
+  Neighbour *n2 = malloc(sizeof(Neighbour));
+  Neighbour *n3 = malloc(sizeof(Neighbour));
+  // set and attach neighbours to router
+  r->neighbours[0] = n1; r->neighbours[1] = n2; r->neighbours[2] = n3;
+  sscanf(s, "%d %d %d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost, &n3->id, &n3->cost);
+
+  // Set neighbours ip and ports
+  for (size_t i = 0; i < sizeof(r->neighbours) / sizeof(r->neighbours[0]); i++) {
+    if (parse_router_config(roteador_cfg, r->neighbours[i]->id, &r->neighbours[i]->port, r->neighbours[i]->ip) == -1) {
+      continue;
+    }
+  }
 }
 
 // Display information about the router
@@ -130,6 +136,19 @@ void display_router_info(Router *r) {
   printf(" ----------------------------\n\n");
 }
 
+// Loop over all neighbours and display useful info about 'em
+void display_neighbours_info(Router *r) {
+  system("clear"); printf("\n Neighbours Information");
+  printf("\n  ---------------------------------\n");
+  printf(" | id \t| cost \t| port \t| ip");
+  printf("\n  ---------------------------------\n");
+  for (size_t i = 0; i < sizeof(r->neighbours) / sizeof(r->neighbours[0]); i++) {
+    if (r->neighbours[i]->cost > 15) continue;
+    printf(" | %d \t| %d \t| %d | %s", r->neighbours[i]->id, r->neighbours[i]->cost, r->neighbours[i]->port, r->neighbours[i]->ip);
+  }
+  printf("  ---------------------------------\n");
+}
+
 void *terminal(void *data) {
   Router *r = data;
 
@@ -139,6 +158,7 @@ void *terminal(void *data) {
     printf("\n * 1 - Send Message");
     printf("\n * 2 - See Sent History");
     printf("\n * 3 - See Received History");
+    printf("\n * 4 - Neighbours Info");
     printf("\n * 0 - Exit");
     printf("\n ----------------------------");
     printf("\n option: ");
@@ -146,17 +166,18 @@ void *terminal(void *data) {
 
     if (option == 0) {
       system("clear");
-      printf("Program finished...\n");
+      printf("\n Program finished...\n\n");
       exit(0);
     }
     else if (option == 1) {
+      // Create 'sender' Thread
       pthread_t th_sender;
       pthread_create(&th_sender, NULL, (void *)sender, r);
       pthread_join(th_sender, NULL);
-
     }
     else if (option == 2) printf("WIP\n");
     else if (option == 3) printf("WIP\n");
+    else if (option == 4) display_neighbours_info(r);
   }
 }
 
@@ -165,57 +186,69 @@ void *packet_handler() {
 
 void *sender(void *data) {
   Router *r = data;
-  char buffer[r->buffer_length];
-  char vrau[r->buffer_length];
+  int neighbour_option = -1;
 
-  printf("\n\n OBS: FOR NOW THE ROUTER IS SENDING THE MSG TO ITSELF !!!\n\n");
+  /*
+  * In the future this will get all avaiable routers from the distance vector
+  */
+  system("clear"); printf("\n Select Neighbour:\n");
+  display_neighbours_info(r);
+  printf(" Option (id): "); scanf("%d", &neighbour_option);
 
-  int port = r->port;
-  int temp = 0;
-
-  /*Create UDP socket*/
-  int clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
-
-  /*Configure settings in address struct*/
-  struct sockaddr_in serverAddr;
-  serverAddr.sin_family = AF_INET;
-  serverAddr.sin_port = htons(port);
-  serverAddr.sin_addr.s_addr = inet_addr(r->ip);
-  memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
-  /*Initialize size variable to be used later on*/
-  socklen_t addr_size = sizeof serverAddr;
-
-  while(temp < 2) {
-    // clear buffer
-    memset(buffer, 0, strlen(buffer));
-    int ch, i = 0;
-
-    if (temp > 0) {
-      // system("clear");
-      printf("\n ------------ Send Msg ------------");
-      printf("\n Type msg to send to: ");
-    }
-    while((ch = getchar()) != '\n') {
-      buffer[i++] = ch;
-    } buffer[i++] = '\n';
+  printf("\n Sending to neighbour: %d\n", neighbour_option);
 
 
-    if (temp > 0) {
-      int nBytes = strlen(buffer) + 1;
-      /*Send message to server*/
-      sprintf(vrau, "%d", 0);
-      strncat(vrau, "_", 2);
-      strncat(vrau, r->ip, strlen(r->ip));
-      strncat(vrau, "_", 2);
-      strncat(vrau, r->ip, strlen(r->ip));
-      strncat(vrau, "_", 2);
-      strncat(vrau, buffer, strlen(buffer));
-
-      sendto(clientSocket, buffer, nBytes, 0, (struct sockaddr *)&serverAddr, addr_size);
-      printf("\n Sending msg...\n");
-    }
-    temp ++;
-  }
+  // char buffer[r->buffer_length];
+  // char vrau[r->buffer_length];
+  //
+  // printf("\n\n OBS: FOR NOW THE ROUTER IS SENDING THE MSG TO ITSELF !!!\n\n");
+  //
+  // int port = r->port;
+  // int temp = 0;
+  //
+  // /*Create UDP socket*/
+  // int clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
+  //
+  // /*Configure settings in address struct*/
+  // struct sockaddr_in serverAddr;
+  // serverAddr.sin_family = AF_INET;
+  // serverAddr.sin_port = htons(port);
+  // serverAddr.sin_addr.s_addr = inet_addr(r->ip);
+  // memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
+  // /*Initialize size variable to be used later on*/
+  // socklen_t addr_size = sizeof serverAddr;
+  //
+  // while(temp < 2) {
+  //   // clear buffer
+  //   memset(buffer, 0, strlen(buffer));
+  //   int ch, i = 0;
+  //
+  //   if (temp > 0) {
+  //     // system("clear");
+  //     printf("\n ------------ Send Msg ------------");
+  //     printf("\n Type msg to send to: ");
+  //   }
+  //   while((ch = getchar()) != '\n') {
+  //     buffer[i++] = ch;
+  //   } buffer[i++] = '\n';
+  //
+  //
+  //   if (temp > 0) {
+  //     int nBytes = strlen(buffer) + 1;
+  //     /*Send message to server*/
+  //     sprintf(vrau, "%d", 0);
+  //     strncat(vrau, "_", 2);
+  //     strncat(vrau, r->ip, strlen(r->ip));
+  //     strncat(vrau, "_", 2);
+  //     strncat(vrau, r->ip, strlen(r->ip));
+  //     strncat(vrau, "_", 2);
+  //     strncat(vrau, buffer, strlen(buffer));
+  //
+  //     sendto(clientSocket, buffer, nBytes, 0, (struct sockaddr *)&serverAddr, addr_size);
+  //     printf("\n Sending msg...\n");
+  //   }
+  //   temp ++;
+  // }
 }
 
 void *receiver(void *data) {
