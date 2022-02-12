@@ -139,14 +139,14 @@ void display_router_info(Router *r) {
 // Loop over all neighbours and display useful info about 'em
 void display_neighbours_info(Router *r) {
   system("clear"); printf("\n Neighbours Information");
-  printf("\n  ---------------------------------\n");
-  printf(" | id \t| cost \t| port \t| ip");
-  printf("\n  ---------------------------------\n");
+  printf("\n  -----------------------------------------\n");
+  printf(" | index | id \t| cost \t| port \t| ip");
+  printf("\n  -----------------------------------------\n");
   for (size_t i = 0; i < sizeof(r->neighbours) / sizeof(r->neighbours[0]); i++) {
     if (r->neighbours[i]->cost > 15) continue;
-    printf(" | %d \t| %d \t| %d | %s", r->neighbours[i]->id, r->neighbours[i]->cost, r->neighbours[i]->port, r->neighbours[i]->ip);
+    printf(" |   %d \t | %d \t| %d \t| %d | %s", i, r->neighbours[i]->id, r->neighbours[i]->cost, r->neighbours[i]->port, r->neighbours[i]->ip);
   }
-  printf("  ---------------------------------\n");
+  printf("  -----------------------------------------\n");
 }
 
 void *terminal(void *data) {
@@ -193,62 +193,57 @@ void *sender(void *data) {
   */
   system("clear"); printf("\n Select Neighbour:\n");
   display_neighbours_info(r);
-  printf(" Option (id): "); scanf("%d", &neighbour_option);
+  printf(" Option (index): "); scanf("%d", &neighbour_option);
 
-  printf("\n Sending to neighbour: %d\n", neighbour_option);
+  char buffer[r->buffer_length];
+  char vrau[r->buffer_length];
+
+  int port = r->neighbours[neighbour_option]->port;
+  int temp = 0;
+
+  /*Create UDP socket*/
+  int clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
+
+  /*Configure settings in address struct*/
+  struct sockaddr_in serverAddr;
+  serverAddr.sin_family = AF_INET;
+  serverAddr.sin_port = htons(port);
+  serverAddr.sin_addr.s_addr = inet_addr(r->ip);
+  memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
+  /*Initialize size variable to be used later on*/
+  socklen_t addr_size = sizeof serverAddr;
+
+  while(temp < 2) {
+    // clear buffer
+    memset(buffer, 0, strlen(buffer));
+    int ch, i = 0;
+
+    if (temp > 0) {
+      // system("clear");
+      printf("\n ------------ Send Msg ------------");
+      printf("\n Type msg to send to: ");
+    }
+    while((ch = getchar()) != '\n') {
+      buffer[i++] = ch;
+    } buffer[i++] = '\n';
 
 
-  // char buffer[r->buffer_length];
-  // char vrau[r->buffer_length];
-  //
-  // printf("\n\n OBS: FOR NOW THE ROUTER IS SENDING THE MSG TO ITSELF !!!\n\n");
-  //
-  // int port = r->port;
-  // int temp = 0;
-  //
-  // /*Create UDP socket*/
-  // int clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
-  //
-  // /*Configure settings in address struct*/
-  // struct sockaddr_in serverAddr;
-  // serverAddr.sin_family = AF_INET;
-  // serverAddr.sin_port = htons(port);
-  // serverAddr.sin_addr.s_addr = inet_addr(r->ip);
-  // memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
-  // /*Initialize size variable to be used later on*/
-  // socklen_t addr_size = sizeof serverAddr;
-  //
-  // while(temp < 2) {
-  //   // clear buffer
-  //   memset(buffer, 0, strlen(buffer));
-  //   int ch, i = 0;
-  //
-  //   if (temp > 0) {
-  //     // system("clear");
-  //     printf("\n ------------ Send Msg ------------");
-  //     printf("\n Type msg to send to: ");
-  //   }
-  //   while((ch = getchar()) != '\n') {
-  //     buffer[i++] = ch;
-  //   } buffer[i++] = '\n';
-  //
-  //
-  //   if (temp > 0) {
-  //     int nBytes = strlen(buffer) + 1;
-  //     /*Send message to server*/
-  //     sprintf(vrau, "%d", 0);
-  //     strncat(vrau, "_", 2);
-  //     strncat(vrau, r->ip, strlen(r->ip));
-  //     strncat(vrau, "_", 2);
-  //     strncat(vrau, r->ip, strlen(r->ip));
-  //     strncat(vrau, "_", 2);
-  //     strncat(vrau, buffer, strlen(buffer));
-  //
-  //     sendto(clientSocket, buffer, nBytes, 0, (struct sockaddr *)&serverAddr, addr_size);
-  //     printf("\n Sending msg...\n");
-  //   }
-  //   temp ++;
-  // }
+    if (temp > 0) {
+      int nBytes = strlen(buffer) + 1;
+      /*Send message to server*/
+      sprintf(vrau, "%d", 0);
+      strncat(vrau, "_", 2);
+      strncat(vrau, r->ip, strlen(r->ip));
+      strncat(vrau, "_", 2);
+      strncat(vrau, r->ip, strlen(r->ip));
+      strncat(vrau, "_", 2);
+      strncat(vrau, buffer, strlen(buffer));
+
+      sendto(clientSocket, buffer, nBytes, 0, (struct sockaddr *)&serverAddr, addr_size);
+      printf("\n Sending msg...\n");
+    }
+    temp ++;
+  }
 }
 
 void *receiver(void *data) {
