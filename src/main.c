@@ -10,7 +10,6 @@
 
 /*
 * Known issues:
-* Router is sending the msg to itself (for now)
 * Incoming and Sending Queue are being implemented
 * Sent and received history are not implemented (yet)
 */
@@ -31,7 +30,6 @@
 #include "neighbour.h"
 #include "router.h"
 #include "message.h"
-#include "queue.h"
 
 /* Configuration files */
 #define enlaces_cfg "./cfg/enlaces.config"
@@ -46,6 +44,48 @@ void *receiver(void *data);
 void *terminal(void *data);
 void *packet_handler();
 void display_neighbours_info(Router *r);
+
+/* QUEUE */
+#define MAX 3
+char queue[MAX][50];
+int queue_head = 0;
+int queue_tail = -1;
+int queue_item_count = 0;
+
+char* queue_start() { return queue[queue_head]; }
+
+bool queue_is_empty() { return queue_item_count == 0; }
+
+bool queue_is_full() { return queue_item_count == MAX; }
+
+int queue_size() { return queue_item_count; }
+
+void queue_insert(char data[]) {
+   if(!queue_is_full()) {
+      if(queue_tail == MAX-1) {
+         queue_tail = -1;
+      }
+      strcpy(queue[++queue_tail], data);
+      queue_item_count++;
+   }
+}
+
+void queue_remove() {
+   if(queue_head++ == MAX) {
+      queue_head = 0;
+   } queue_item_count--;
+}
+
+void display_incoming_queue() {
+  if (queue_size() == 0) {
+    printf("\n Queue is Empty \n");
+    return;
+  }
+  for (size_t i = 0; i < MAX; i++) {
+    printf("(%d) | %s\n", i, queue[i]);
+  }
+}
+/* END QUEUE */
 
 /* Main */
 int main(int argc, char const *argv[]) {
@@ -142,6 +182,10 @@ void display_neighbours_info(Router *r) {
   printf("\n  -----------------------------------------\n");
   printf(" | index | id \t| cost \t| port \t| ip");
   printf("\n  -----------------------------------------\n");
+  printf(" (self)");
+  printf("\n  -----------------------------------------\n");
+  printf(" |  %d   | %d \t| %d \t| %d | %s", -1, r->id, 0, r->port, r->ip);
+  printf("  -----------------------------------------\n");
   for (size_t i = 0; i < sizeof(r->neighbours) / sizeof(r->neighbours[0]); i++) {
     if (r->neighbours[i]->cost > 15) continue;
     printf(" |   %d \t | %d \t| %d \t| %d | %s", i, r->neighbours[i]->id, r->neighbours[i]->cost, r->neighbours[i]->port, r->neighbours[i]->ip);
@@ -159,6 +203,7 @@ void *terminal(void *data) {
     printf("\n * 2 - See Sent History");
     printf("\n * 3 - See Received History");
     printf("\n * 4 - Neighbours Info");
+    printf("\n * 5 - Show Incoming Queue");
     printf("\n * 0 - Exit");
     printf("\n ----------------------------");
     printf("\n option: ");
@@ -178,6 +223,7 @@ void *terminal(void *data) {
     else if (option == 2) printf("WIP\n");
     else if (option == 3) printf("WIP\n");
     else if (option == 4) display_neighbours_info(r);
+    else if (option == 5) display_incoming_queue();
   }
 }
 
@@ -188,9 +234,7 @@ void *sender(void *data) {
   Router *r = data;
   int neighbour_option = -1;
 
-  /*
-  * In the future this will get all avaiable routers from the distance vector
-  */
+  // (NOTE) In the future this will get all avaiable routers from the distance vector
   system("clear"); printf("\n Select Neighbour:\n");
   display_neighbours_info(r);
   printf(" Option (index): "); scanf("%d", &neighbour_option);
@@ -198,9 +242,16 @@ void *sender(void *data) {
   char buffer[r->buffer_length];
   char vrau[r->buffer_length];
 
-  int port = r->neighbours[neighbour_option]->port;
-  int temp = 0;
+  int port = -1;
+  // Allow option to send msg to itself (debug/testing purposes)
+  if (neighbour_option == -1) {
+    port = r->port;
+  }
+  else {
+    port = r->neighbours[neighbour_option]->port;
+  }
 
+  int temp = 0;
   /*Create UDP socket*/
   int clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
 
@@ -272,6 +323,9 @@ void *receiver(void *data) {
     /* Try to receive any incoming UDP datagram. Address and port of
     requesting client will be stored on serverStorage variable */
     int nBytes = recvfrom(udp_socket, buffer, r->buffer_length, 0, (struct sockaddr *)&serverStorage, &addr_size);
-    printf("\n Received msg: %s", buffer);
+    queue_insert(buffer);
+
+    // (NOTE) this print needs to be removed
+    printf("\n Received Message: %s\n", buffer);
   }
 }
