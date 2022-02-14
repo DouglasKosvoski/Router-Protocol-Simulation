@@ -82,6 +82,8 @@ int parse_router_config(char filename[], int rid, int *port, char ip[20]) {
       parse_line(buffer, " ", id, temp_port, temp_ip);
       if (atoi(id) == rid) {
         *port = atoi(temp_port);
+        // remove trailing new line
+        temp_ip[strlen(temp_ip)-1] = '\0';
         strcpy(ip, temp_ip);
         found = 1;
         break;
