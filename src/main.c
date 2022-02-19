@@ -76,18 +76,21 @@ int main(int argc, char const *argv[]) {
   data->r = r1; data->q_in = q_in; data->q_out = q_out;
   
   // Create threads
-  pthread_t th_receiver, th_terminal, th_handler;
+  pthread_t th_receiver, th_terminal, th_handler, th_sender;
   pthread_create(&th_terminal, NULL, (void *)terminal, (void *)data);
   pthread_create(&th_receiver, NULL, (void *)receiver, (void *)data);
   pthread_create(&th_handler, NULL, (void *)packet_handler, (void *)data);
+  pthread_create(&th_sender, NULL, (void *)sender, (void *)data);
   
   // Join threads
   pthread_join(th_receiver, NULL);
   pthread_join(th_terminal, NULL);
   pthread_join(th_handler, NULL);
+  pthread_join(th_sender, NULL);
   printf("Thread ID: %ld returned\n", th_receiver);
   printf("Thread ID: %ld returned\n", th_terminal);
   printf("Thread ID: %ld returned\n", th_handler);
+  printf("Thread ID: %ld returned\n", th_sender);
   sem_destroy(&meu_semapharo); free(r1);
 
   printf("\n*** Fim do programa ***\n");
@@ -207,8 +210,8 @@ void *terminal(void *data) {
     // display options
     printf("\n --------- Main Menu --------");
     printf("\n * 1 - Send Message");
-    printf("\n * 2 - See Sent History");
-    printf("\n * 3 - See Received History");
+    printf("\n * 2 - See Out Queue");
+    printf("\n * 3 - See In Queue");
     printf("\n * 4 - Neighbours Info");
     printf("\n * 8 - Router Info");
     printf("\n * 9 - Clear Terminal");
@@ -223,12 +226,43 @@ void *terminal(void *data) {
       exit(0);
     }
     else if (option == 1) {
-      // Create 'sender' Thread
-      pthread_t th_sender;
-      pthread_create(&th_sender, NULL, (void *)sender, (void *)dd);
-      pthread_join(th_sender, NULL);
+      int neighbour_option = -1;
+      char msg_serialized[100];
+      
+      // (NOTE) In the future this will get all avaiable routers from the distance vector
+      clear_terminal(); printf("\n Select Neighbour:\n");
+      // display a table with all avaiable router to connect with
+      display_neighbours_info(r);
+      // get user input
+      printf(" Option (index): "); scanf("%d", &neighbour_option);
+      printf("Neighbout Chorse: %d\n", neighbour_option);
+      Message *msg_object = malloc(sizeof(Message));
+      strcpy(msg_object->source_ip, r->ip);
+      msg_object->source_port = r->port; msg_object->type = 0;
+      
+      // Allow option to send msg to itself (debug/testing purposes)
+      if (neighbour_option == -1) {
+        // get port and set msg destination to yourself
+        strcpy(msg_object->destination_ip, r->ip);
+        msg_object->destination_port = r->port;
+      }
+      else {
+        // set port to chosen neighbour and also set msg destination
+        strcpy(msg_object->destination_ip, r->neighbours[neighbour_option]->ip);
+        msg_object->destination_port = r->neighbours[neighbour_option]->port;
+      }
+      
+      clear_terminal();
+      printf("\n ------------ Send Msg ------------");
+      printf("\n Type msg to send to: ");
+      scanf("%s", &msg_object->payload);
+      // basically get all attributes from Message and concatenate into a single string
+      serialize_message(msg_serialized, msg_object);
+      if (pthread_mutex_trylock(&out_mutex) == 0) {
+        queue_insert(q_out, msg_serialized); pthread_mutex_unlock(&out_mutex);
+      } 
     }
-    else if (option == 2) printf("WIP\n");
+    else if (option == 2) display_queue_content(q_out);
     else if (option == 3) display_queue_content(q_in);
     else if (option == 4) display_neighbours_info(r);
     else if (option == 8) display_router_info(r);
@@ -249,70 +283,30 @@ void *packet_handler(void *data) {
 void *sender(void *data) {
   Thread_data *dd = data;
   Router *r = dd->r;
-  Queue *q_in = dd->q_in;
   Queue *q_out = dd->q_out;
-  printf("RR: %d\n", r->id);
   
-  int neighbour_option = -1, port = -1, temp = 0, i = 0, character;
-  char msg_dest[20] = "", buffer[r->buffer_length], msg_serialized[100];
-  memset(buffer, 0, strlen(buffer));  
-
-  // (NOTE) In the future this will get all avaiable routers from the distance vector
-  clear_terminal();
-  printf("\n Select Neighbour:\n");
-  // display a table with all avaiable router to connect with
-  display_neighbours_info(r);
-  // get user input
-  printf(" Option (index): "); scanf("%d", &neighbour_option);
-
-  Message *msg_object = malloc(sizeof(Message));
-  strcpy(msg_object->source_ip, r->ip); msg_object->source_port = r->port;
-  msg_object->type = 0;
-
-  // Allow option to send msg to itself (debug/testing purposes)
-  if (neighbour_option == -1) {
-    // get port and set msg destination to yourself
-    strcpy(msg_object->destination_ip, r->ip);
-    msg_object->destination_port = r->port;
-  }
-  else {
-    // set port to chosen neighbour and also set msg destination
-    strcpy(msg_object->destination_ip, r->neighbours[neighbour_option]->ip);
-    msg_object->destination_port = r->neighbours[neighbour_option]->port;
-  }
-
-  // Create UDP socket and configure settings
-  int clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
-  struct sockaddr_in serverAddr;
-  serverAddr.sin_family = AF_INET;
-  serverAddr.sin_port = htons(msg_object->destination_port);
-  serverAddr.sin_addr.s_addr = inet_addr(msg_object->destination_ip);
-  memset(serverAddr.sin_zero, '\0', sizeof(serverAddr.sin_zero));
-  socklen_t addr_size = sizeof(serverAddr);
-
-  while(temp < 2) {
-    // reset buffer
-    memset(buffer, 0, strlen(buffer));  
-    if (temp > 0) {
-      clear_terminal();
-      printf("\n ------------ Send Msg ------------");
-      printf("\n Type msg to send to: ");
+  while (1) {
+    if (queue_size(q_out) > 0) {
+      printf("Tem coisa para enviar!\n");
+      break;
     }
-
-    // get input into buffer
-    while((character = getchar()) != '\n') { buffer[i++] = character; }
-
-    // Send message to server
-    if (temp > 0) {
-      // Construct message object and serialize it
-      strcpy(msg_object->payload, buffer);
-
-      // basically get all attributes from Message and concatenate into a single string
-      serialize_message(msg_serialized, msg_object);
-      sendto(clientSocket, msg_serialized, r->buffer_length, 0, (struct sockaddr *)&serverAddr, addr_size);
-      printf("\n Sending msg...\n");
-    } temp ++;
   }
+
+  // Message *msg_object = malloc(sizeof(Message));
+  // 
+  // // Create UDP socket and configure settings
+  // int clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
+  // struct sockaddr_in serverAddr;
+  // serverAddr.sin_family = AF_INET;
+  // serverAddr.sin_port = htons(msg_object->destination_port);
+  // serverAddr.sin_addr.s_addr = inet_addr(msg_object->destination_ip);
+  // memset(serverAddr.sin_zero, '\0', sizeof(serverAddr.sin_zero));
+  // socklen_t addr_size = sizeof(serverAddr);
+  // 
+  // while(1) {
+  //   sendto(clientSocket, msg_serialized, r->buffer_length, 0, (struct sockaddr *)&serverAddr, addr_size);
+  //   printf("\n Sending msg...\n");
+  // }
 }
 
 // Receiver thread, is always linstening to upcoming data on specified port
