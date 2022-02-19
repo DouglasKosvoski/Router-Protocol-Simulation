@@ -128,7 +128,7 @@ void set_router(Router *r, const char *i) {
   // get parent process id
   r->parent_pid = getppid();
   // set max buffer length for transfer
-  r->buffer_length = 512;
+  r->buffer_length = 1024;
 
   // set port and ip
   if (parse_router_config(roteador_cfg, r->id, &r->port, r->ip) == -1) {
@@ -240,7 +240,10 @@ void *terminal(void *data) {
 }
 
 // (Is a little foggy right now, on which is the pourpose)
-void *packet_handler() { }
+void *packet_handler(void *data) {
+  Router *r = data;
+  
+}
 
 // Sender thread, is created only when called from Terminal thread
 // allowing to get the user msg and send to a chosen destination
@@ -248,7 +251,8 @@ void *sender(void *data) {
   Router *r = data;
   int neighbour_option = -1, port = -1, temp = 0, i = 0, character;
   char msg_dest[20] = "", buffer[r->buffer_length], msg_serialized[100];
-
+  memset(buffer, 0, strlen(buffer));  
+  
   // (NOTE) In the future this will get all avaiable routers from the distance vector
   clear_terminal();
   printf("\n Select Neighbour:\n");
@@ -329,6 +333,7 @@ void *receiver(void *data) {
   while(1) {
     // Try to receive any upcoming UDP datagram. Address and port of
     // requesting client will be stored on serverStorage variable
+    memset(buffer, 0, strlen(buffer));  
     recvfrom(udp_socket, buffer, r->buffer_length, 0, (struct sockaddr *)&serverStorage, &addr_size);
     queue_insert(buffer);
   }
