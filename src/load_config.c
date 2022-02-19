@@ -97,3 +97,16 @@ int parse_router_config(char filename[], int rid, int *port, char ip[20]) {
   }
   return 0;
 }
+
+void clear_terminal() {
+  system("clear");
+}
+
+// Check if router id was passed on execution
+void check_arguments(int args) {
+  if (args < 2) {
+    printf("\nRouter Id expected !!!\n");
+    printf("Ex: `./router 1` \n\n");
+    exit(1);
+  }
+}
