@@ -3,6 +3,7 @@
 
 typedef struct Queue {
   int head;
+  // remember to set tail = -1;
   int tail;
   int item_count;
   char queue[CAPACITY][ITEM_SIZE];
@@ -32,6 +33,8 @@ void queue_insert(Queue *q, char data[]) {
     strcpy(q->queue[++q->tail], data);
     q->item_count++;
   }
+  else {
+  }
 }
 
 void queue_remove(Queue *q) {
@@ -40,7 +43,7 @@ void queue_remove(Queue *q) {
   } q->item_count--;
 }
 
-void display_received_msgs(Queue *q) {
+void display_queue_content(Queue *q) {
   if (queue_size(q) == 0) {
     printf("\n ----------------------------");
     printf("\n -> Queue is Empty \n");

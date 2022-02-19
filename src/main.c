@@ -18,6 +18,7 @@
 #include <pthread.h>    // thread manipulation
 #include <string.h>     // string manipulation
 #include <stdbool.h>
+#include <semaphore.h>
 
 /* Custom structures and functions */
 #include "load_config.h"
@@ -47,37 +48,48 @@ typedef struct Thread_data {
   Queue *q_out;
 } Thread_data;
 
+// mutex initialization
+pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t out_mutex = PTHREAD_MUTEX_INITIALIZER;
+static sem_t meu_semapharo;
+
 /* Main */
 int main(int argc, char const *argv[]) {
   // check if id was passed as argument
   check_arguments(argc);
-
+  
   // allocate router
   Router *r1 = malloc(sizeof(Router));
   // allocate queues
-  Queue *q_in = malloc(sizeof(Queue));
-  Queue *q_out = malloc(sizeof(Queue));
+  Queue *q_in = malloc(sizeof(Queue)); q_in->tail = -1;
+  Queue *q_out = malloc(sizeof(Queue)); q_out->tail = -1;
   
+  // semaphore initialization
+  sem_init(&meu_semapharo, 0, 1);
+
   // configure router
   set_router(r1, argv[1]);
   // print some info onto the terminal, id, ip, port, pid
   display_router_info(r1);
   
   Thread_data *data = malloc(sizeof(Thread_data));
-  data->r = r1;
-  data->q_in = q_in;
-  data->q_out = q_out;
+  data->r = r1; data->q_in = q_in; data->q_out = q_out;
   
   // Create threads
-  pthread_t th_receiver, th_terminal;
-  pthread_create(&th_receiver, NULL, (void *)receiver, (void *)data);
+  pthread_t th_receiver, th_terminal, th_handler;
   pthread_create(&th_terminal, NULL, (void *)terminal, (void *)data);
+  pthread_create(&th_receiver, NULL, (void *)receiver, (void *)data);
+  pthread_create(&th_handler, NULL, (void *)packet_handler, (void *)data);
   
   // Join threads
   pthread_join(th_receiver, NULL);
   pthread_join(th_terminal, NULL);
+  pthread_join(th_handler, NULL);
   printf("Thread ID: %ld returned\n", th_receiver);
   printf("Thread ID: %ld returned\n", th_terminal);
+  printf("Thread ID: %ld returned\n", th_handler);
+  sem_destroy(&meu_semapharo); free(r1);
+
   printf("\n*** Fim do programa ***\n");
   exit(0);
 };
@@ -217,7 +229,7 @@ void *terminal(void *data) {
       pthread_join(th_sender, NULL);
     }
     else if (option == 2) printf("WIP\n");
-    else if (option == 3) display_received_msgs(q_in);
+    else if (option == 3) display_queue_content(q_in);
     else if (option == 4) display_neighbours_info(r);
     else if (option == 8) display_router_info(r);
     else if (option == 9) clear_terminal();
@@ -230,7 +242,6 @@ void *packet_handler(void *data) {
   Router *r = dd->r;
   Queue *q_in = dd->q_in;
   Queue *q_out = dd->q_out;
-
 }
 
 // Sender thread, is created only when called from Terminal thread
@@ -333,6 +344,10 @@ void *receiver(void *data) {
     // requesting client will be stored on serverStorage variable
     memset(buffer, 0, strlen(buffer));  
     recvfrom(udp_socket, buffer, r->buffer_length, 0, (struct sockaddr *)&serverStorage, &addr_size);
-    queue_insert(q_in, buffer);
+    if (pthread_mutex_trylock(&in_mutex) == 0) {
+      queue_insert(q_in, buffer); pthread_mutex_unlock(&in_mutex);
+    } else {
+      printf("NOT REC\n");
+    }
   }
 }
