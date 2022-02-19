@@ -55,7 +55,7 @@ int main(int argc, char const *argv[]) {
   
   // allocate router
   r1 = malloc(sizeof(Router));
-  rt = malloc(sizeof(Routing_table));
+  rt = malloc(sizeof(Routing_table)); init_routing_table(rt);
   q_in = malloc(sizeof(Queue)); q_in->tail = -1;
   q_out = malloc(sizeof(Queue)); q_out->tail = -1;
   
@@ -110,15 +110,18 @@ void set_router(const char *i) {
   r1->neighbours[0] = n1; r1->neighbours[1] = n2; r1->neighbours[2] = n3;
   sscanf(s, "%d %d %d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost, &n3->id, &n3->cost);
 
-  rt->routes[r1->id][r1->id] = 0;
-  rt->routes[r1->id][n1->id] = n1->cost;
-  rt->routes[r1->id][n2->id] = n2->cost;
-  // rt->routes[r1->id][n3->id] = n3->cost;
+  // from_id, cost, next_hop_id;
+  routing_table_set(rt, r1->id, 0, r1->id);
+  // routing_table_set(rt, n1->id, n1->cost, n1->id);
+  // routing_table_set(rt, n2->id, n2->cost, n2->id);
+  // routing_table_set(rt, n3->id, n3->cost, n3->id);
 
   // Set ip and ports
   for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++) {
     if (parse_router_config(roteador_cfg, r1->neighbours[i]->id, &r1->neighbours[i]->port, r1->neighbours[i]->ip) == -1) {
       continue;
+    } else {
+      routing_table_set(rt, r1->neighbours[i]->id, r1->neighbours[i]->cost, r1->neighbours[i]->id);
     }
   }
 }
