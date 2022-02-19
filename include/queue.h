@@ -38,7 +38,8 @@ void queue_insert(Queue *q, char data[]) {
 }
 
 void queue_remove(Queue *q) {
-  if(q->head++ == CAPACITY) {
+  q->head++;
+  if(q->head == CAPACITY) {
     q->head = 0;
   } q->item_count--;
 }
