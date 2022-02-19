@@ -41,36 +41,43 @@ void *packet_handler();
 void display_neighbours_info(Router *r);
 void clear_terminal();
 
+typedef struct Thread_data {
+  Router *r;
+  Queue *q_in;
+  Queue *q_out;
+} Thread_data;
+
 /* Main */
 int main(int argc, char const *argv[]) {
-  // allocate queues
-  Queue *q_in = malloc(sizeof(Queue));
-  Queue *q_out = malloc(sizeof(Queue));
-
   // check if id was passed as argument
   check_arguments(argc);
 
   // allocate router
   Router *r1 = malloc(sizeof(Router));
-  // set buffer
+  // allocate queues
+  Queue *q_in = malloc(sizeof(Queue));
+  Queue *q_out = malloc(sizeof(Queue));
+  
+  // configure router
   set_router(r1, argv[1]);
   // print some info onto the terminal, id, ip, port, pid
   display_router_info(r1);
   
+  Thread_data *data = malloc(sizeof(Thread_data));
+  data->r = r1;
+  data->q_in = q_in;
+  data->q_out = q_out;
+  
   // Create threads
   pthread_t th_receiver, th_terminal;
-  pthread_create(&th_receiver, NULL, (void *)receiver, r1);
-  pthread_create(&th_terminal, NULL, (void *)terminal, r1);
+  pthread_create(&th_receiver, NULL, (void *)receiver, (void *)data);
+  pthread_create(&th_terminal, NULL, (void *)terminal, (void *)data);
   
   // Join threads
   pthread_join(th_receiver, NULL);
   pthread_join(th_terminal, NULL);
   printf("Thread ID: %ld returned\n", th_receiver);
   printf("Thread ID: %ld returned\n", th_terminal);
-
-  free(q_in);
-  free(q_out);
-  free(r1);
   printf("\n*** Fim do programa ***\n");
   exit(0);
 };
@@ -177,7 +184,11 @@ void serialize_message(char *m, Message *msg) {
 
 // Terminal thread, display menu, get user input and redirect to chosen option
 void *terminal(void *data) {
-  Router *r = data; int option = -1;
+  Thread_data *dd = data;
+  Router *r = dd->r;
+  Queue *q_in = dd->q_in;
+  Queue *q_out = dd->q_out;
+  int option = -1;
 
   // Wait and check for user input
   while (1) {
@@ -202,7 +213,7 @@ void *terminal(void *data) {
     else if (option == 1) {
       // Create 'sender' Thread
       pthread_t th_sender;
-      pthread_create(&th_sender, NULL, (void *)sender, r);
+      pthread_create(&th_sender, NULL, (void *)sender, (void *)dd);
       pthread_join(th_sender, NULL);
     }
     else if (option == 2) printf("WIP\n");
@@ -215,15 +226,22 @@ void *terminal(void *data) {
 
 // (Is a little foggy right now, on which is the pourpose)
 void *packet_handler(void *data) {
-  Router *r = data;
+  Thread_data *dd = data;
+  Router *r = dd->r;
+  Queue *q_in = dd->q_in;
+  Queue *q_out = dd->q_out;
 
 }
 
 // Sender thread, is created only when called from Terminal thread
 // allowing to get the user msg and send to a chosen destination
 void *sender(void *data) {
-  Router *r = data;
-
+  Thread_data *dd = data;
+  Router *r = dd->r;
+  Queue *q_in = dd->q_in;
+  Queue *q_out = dd->q_out;
+  printf("RR: %d\n", r->id);
+  
   int neighbour_option = -1, port = -1, temp = 0, i = 0, character;
   char msg_dest[20] = "", buffer[r->buffer_length], msg_serialized[100];
   memset(buffer, 0, strlen(buffer));  
@@ -288,11 +306,15 @@ void *sender(void *data) {
 
 // Receiver thread, is always linstening to upcoming data on specified port
 void *receiver(void *data) {
-  Router *r = data;
+  Thread_data *dd = data;
+  Router *r = dd->r;
+  Queue *q_in = dd->q_in;
+  Queue *q_out = dd->q_out;
+  
   char buffer[r->buffer_length];
   struct sockaddr_in serverAddr, clientAddr;
   struct sockaddr_storage serverStorage;
-  
+
   // Create and configure UDP socket
   int udp_socket = socket(PF_INET, SOCK_DGRAM, 0);
   serverAddr.sin_family = AF_INET;
@@ -300,12 +322,12 @@ void *receiver(void *data) {
   serverAddr.sin_addr.s_addr = inet_addr(r->ip);
   memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
   socklen_t addr_size = sizeof serverStorage;
-  
+
   // Bind socket with address struct
   if (bind(udp_socket, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) == -1) {
     printf("Port Already Allocated\n"); exit(1);
   };
-  
+
   while(1) {
     // Try to receive any upcoming UDP datagram. Address and port of
     // requesting client will be stored on serverStorage variable
