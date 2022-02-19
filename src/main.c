@@ -188,14 +188,21 @@ void display_neighbours_info(Router *r) {
 
 // Get all attributes from Message and concatenate into a single string
 void serialize_message(char *m, Message *msg) {
-  char serialized_msg[100] = "";
+  char serialized_msg[1024] = "";
   char separator[2] = "^";
-
+  char temp[20];
+  
   sprintf(serialized_msg, "%d", 0);
   strncat(serialized_msg, separator, 2);
-  strncat(serialized_msg, msg->source, strlen(msg->source));
+  strncat(serialized_msg, msg->source_ip, strlen(msg->source_ip));
   strncat(serialized_msg, separator, 2);
-  strncat(serialized_msg, msg->destination, strlen(msg->destination));
+  sprintf(temp, "%d", msg->source_port);
+  strncat(serialized_msg, temp, strlen(temp));
+  strncat(serialized_msg, separator, 2);
+  strncat(serialized_msg, msg->destination_ip, strlen(msg->destination_ip));
+  strncat(serialized_msg, separator, 2);
+  sprintf(temp, "%d", msg->destination_port);
+  strncat(serialized_msg, temp, strlen(temp));
   strncat(serialized_msg, separator, 2);
   strncat(serialized_msg, msg->payload, strlen(msg->payload));
   strcpy(m, serialized_msg);
@@ -249,6 +256,7 @@ void *packet_handler(void *data) {
 // allowing to get the user msg and send to a chosen destination
 void *sender(void *data) {
   Router *r = data;
+
   int neighbour_option = -1, port = -1, temp = 0, i = 0, character;
   char msg_dest[20] = "", buffer[r->buffer_length], msg_serialized[100];
   memset(buffer, 0, strlen(buffer));  
@@ -261,26 +269,31 @@ void *sender(void *data) {
   // get user input
   printf(" Option (index): "); scanf("%d", &neighbour_option);
 
+  Message *msg_object = malloc(sizeof(Message));
+  strcpy(msg_object->source_ip, r->ip); msg_object->source_port = r->port;
+  msg_object->type = 0;
+  
   // Allow option to send msg to itself (debug/testing purposes)
   if (neighbour_option == -1) {
     // get port and set msg destination to yourself
-    port = r->port; strcpy(msg_dest, r->ip);
+    strcpy(msg_object->destination_ip, r->ip);
+    msg_object->destination_port = r->port;
   }
   else {
     // set port to chosen neighbour and also set msg destination
-    port = r->neighbours[neighbour_option]->port;
-    strcpy(msg_dest, r->neighbours[neighbour_option]->ip);
+    strcpy(msg_object->destination_ip, r->neighbours[neighbour_option]->ip);
+    msg_object->destination_port = r->neighbours[neighbour_option]->port;
   }
 
   // Create UDP socket and configure settings
   int clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
   struct sockaddr_in serverAddr;
   serverAddr.sin_family = AF_INET;
-  serverAddr.sin_port = htons(port);
-  serverAddr.sin_addr.s_addr = inet_addr(r->ip);
+  serverAddr.sin_port = htons(msg_object->destination_port);
+  serverAddr.sin_addr.s_addr = inet_addr(msg_object->destination_ip);
   memset(serverAddr.sin_zero, '\0', sizeof(serverAddr.sin_zero));
   socklen_t addr_size = sizeof(serverAddr);
-
+  
   while(temp < 2) {
     // reset buffer
     memset(buffer, 0, strlen(buffer));  
@@ -289,22 +302,18 @@ void *sender(void *data) {
       printf("\n ------------ Send Msg ------------");
       printf("\n Type msg to send to: ");
     }
-    
+  
     // get input into buffer
     while((character = getchar()) != '\n') { buffer[i++] = character; }
   
     // Send message to server
     if (temp > 0) {
       // Construct message object and serialize it
-      Message *msg_object = malloc(sizeof(Message));
-      msg_object->type = 0;
-      strcpy(msg_object->source, r->ip);
-      strcpy(msg_object->destination, msg_dest);
       strcpy(msg_object->payload, buffer);
-      
+  
       // basically get all attributes from Message and concatenate into a single string
       serialize_message(msg_serialized, msg_object);
-      sendto(clientSocket, msg_serialized, strlen(msg_serialized), 0, (struct sockaddr *)&serverAddr, addr_size);
+      sendto(clientSocket, msg_serialized, r->buffer_length, 0, (struct sockaddr *)&serverAddr, addr_size);
       printf("\n Sending msg...\n");
     } temp ++;
   }

@@ -3,9 +3,9 @@ typedef struct Message {
   // 0 = msg; 1 = control
   short type;
   // ip address representing which router msg was originated from
-  char source[20];
+  char source_ip[20]; int source_port;
   // ip address representing msg router destination
-  char destination[20];
+  char destination_ip[20]; int destination_port;
   // message content
   char payload[100];
 } Message;
