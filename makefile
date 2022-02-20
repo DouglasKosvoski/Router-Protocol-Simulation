@@ -11,7 +11,7 @@ ODIR = obj
 SRC = src
 
 
-_DEPS = router.h message.h neighbour.h load_config.h queue.h
+_DEPS = router.h message.h neighbour.h load_config.h queue.h routing_table.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 _OBJ = main.o load_config.o

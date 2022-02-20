@@ -37,6 +37,7 @@ pthread_mutex_t out_mutex = PTHREAD_MUTEX_INITIALIZER;
 Routing_table *rt; Router *r1;
 Queue *q_in; Queue *q_out;
 
+void send_initial_distance_vector();
 void set_router(const char *i);
 void display_router_info();
 void display_neighbours_info();
@@ -59,8 +60,8 @@ int main(int argc, char const *argv[]) {
   q_in = malloc(sizeof(Queue)); q_in->tail = -1;
   q_out = malloc(sizeof(Queue)); q_out->tail = -1;
   
-  // configure router
-  set_router(argv[1]);
+  // configure router and tell neighbours its info 
+  set_router(argv[1]); send_initial_distance_vector();
   // print some info onto the terminal, id, ip, port, pid
   display_router_info(r1);
   
@@ -83,6 +84,33 @@ int main(int argc, char const *argv[]) {
   printf("\n*** Fim do programa ***\n");
   exit(0);
 };
+
+void send_initial_distance_vector() {
+  char table_values[256], distance_vector[r1->buffer_length];
+  Message *msg = malloc(sizeof(Message));
+  
+  // type 1 = distance vector
+  msg->type = 1; strcpy(msg->source_ip, r1->ip); msg->source_port = r1->port;
+  
+  strcpy(msg->destination_ip, r1->ip); msg->destination_port = r1->port;
+  
+  // loop over neighbours here, setting destination accordinly
+  // for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++) {
+  //   if (r1->neighbours[i]->id > 6) continue;
+  //   strcpy(msg->destination_ip, r1->neighbours[i]->ip);
+  //   msg->destination_port = r1->neighbours[i]->port;
+  // }
+  
+  // set payload to distance vector content
+  sply(rt, table_values);
+  strcpy(msg->payload, " ");
+  strcpy(msg->payload, table_values);
+  
+  serialize_message(distance_vector, msg);
+  pthread_mutex_lock(&out_mutex);
+  queue_insert(q_out, distance_vector);
+  pthread_mutex_unlock(&out_mutex);
+}
 
 // Parse router config from cfg
 void set_router(const char *i) {
@@ -109,18 +137,15 @@ void set_router(const char *i) {
   Neighbour *n3 = malloc(sizeof(Neighbour));
   r1->neighbours[0] = n1; r1->neighbours[1] = n2; r1->neighbours[2] = n3;
   sscanf(s, "%d %d %d %d %d %d", &n1->id, &n1->cost, &n2->id, &n2->cost, &n3->id, &n3->cost);
-
-  // from_id, cost, next_hop_id;
   routing_table_set(rt, r1->id, 0, r1->id);
-  // routing_table_set(rt, n1->id, n1->cost, n1->id);
-  // routing_table_set(rt, n2->id, n2->cost, n2->id);
-  // routing_table_set(rt, n3->id, n3->cost, n3->id);
+
 
   // Set ip and ports
   for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++) {
     if (parse_router_config(roteador_cfg, r1->neighbours[i]->id, &r1->neighbours[i]->port, r1->neighbours[i]->ip) == -1) {
       continue;
     } else {
+      // from_id, cost, next_hop_id;
       routing_table_set(rt, r1->neighbours[i]->id, r1->neighbours[i]->cost, r1->neighbours[i]->id);
     }
   }
@@ -165,7 +190,8 @@ void serialize_message(char *m, Message *msg) {
   char separator[2] = "^";
   char temp[20];
 
-  sprintf(serialized_msg, "%d", 0);
+  // set type
+  sprintf(serialized_msg, "%d", msg->type);
   strncat(serialized_msg, separator, 2);
   strncat(serialized_msg, msg->source_ip, strlen(msg->source_ip));
   strncat(serialized_msg, separator, 2);
@@ -272,8 +298,8 @@ void *terminal(void *) {
       exit(0);
     }
     else if (option == 1) get_user_message();
-    else if (option == 2) display_queue_content(q_out);
-    else if (option == 3) display_queue_content(q_in);
+    else if (option == 2) { clear_terminal(); display_queue_content(q_out);}
+    else if (option == 3) { clear_terminal(); display_queue_content(q_in);}
     else if (option == 4) display_neighbours_info(r1);
     else if (option == 7) { clear_terminal(); display_routing_table(rt); }
     else if (option == 8) display_router_info(r1);
@@ -281,28 +307,43 @@ void *terminal(void *) {
   }
 }
 
-// (Is a little foggy right now, on which is the pourpose)
 void *packet_handler(void *) {
   Message *msg = malloc(sizeof(Message));
   char deserialized_msg[r1->buffer_length];
 
-  int flag = 0;
   while (1) {
     // listen to incoming queue
     pthread_mutex_lock(&in_mutex);
-    if (queue_size(q_in) > 0 && flag == 0) {
+    
+    if (queue_size(q_in) > 0) {
       strcpy(deserialized_msg, queue_start(q_in));
       deserialize_msg(msg, deserialized_msg);
-      flag++;
       
-      if (msg->type == 0) {
-        printf("Voce Recebeu uma msg de %s:%d", msg->source_ip, msg->source_port);
-      } else {
-        // processa vetor distancia
-        printf("Recebido Vetor distancia de %s:%d", msg->source_ip, msg->source_port);
-        queue_remove(q_in);
+      // if message final destination is to this router, else forward
+      if (strncmp(r1->ip, msg->destination_ip, strlen(msg->destination_ip)) == 0 && r1->port == msg->destination_port) {
+        printf("Mensagem pra mim\n");
+        
+        // user message
+        if (msg->type == 0) {
+          printf("Voce tem uma nova mensagem\n");
+        }
+        // distance vector
+        else {
+          printf("Recebido Vetor distancia\n");
+          printf("SRC: '%s:%d'\n", msg->source_ip, msg->source_port);
+          printf("DST: '%s:%d'\n", msg->destination_ip, msg->destination_port);
+          printf("PLD: '%s'   \n", msg->payload);
+        }
       }
+      // forward message to correct destination
+      else {
+        printf("Encaminhar MSG\n");
+      }
+      
+      queue_remove(q_in);
+      // exit(0);
     }
+    
     pthread_mutex_unlock(&in_mutex);
   }
 }

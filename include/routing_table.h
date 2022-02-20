@@ -1,12 +1,10 @@
-#define DESTINATION 0
-#define NEXT_HOP 1
-#define COST 2
+#define NHOP 1
+#define COST 0
 #define INF 99
 #define SIZE 6
 
 typedef struct Routing_table {
-  int routes[SIZE][2];
-  
+  int routes[SIZE][2];  
 } Routing_table;
 
 void init_routing_table(Routing_table *rt) {
@@ -16,6 +14,20 @@ void init_routing_table(Routing_table *rt) {
   }
 }
 
+void sply(Routing_table *rt, char *str) {
+  char values[256], temp[10], separator[2] = "^";
+  memset(values, 0, strlen(values));
+  
+  for (size_t i = 0; i < SIZE; i++) {
+    sprintf(temp, "%d", rt->routes[i][0]);
+    strncat(values, temp, strlen(temp));
+    strncat(values, separator, strlen(separator));
+    sprintf(temp, "%d", rt->routes[i][1]);
+    strncat(values, temp, strlen(temp));
+    strncat(values, separator, strlen(separator));
+  }
+  strcpy(str, values);
+}
 
 void display_routing_table(Routing_table *rt) {
   // print header
@@ -39,6 +51,6 @@ void display_routing_table(Routing_table *rt) {
 }
 
 void routing_table_set(Routing_table *rt, int id, int cost, int next_hop_id) {
-  rt->routes[id-1][0] = cost;
-  rt->routes[id-1][1] = next_hop_id;
+  rt->routes[id-1][COST] = cost;
+  rt->routes[id-1][NHOP] = next_hop_id;
 }

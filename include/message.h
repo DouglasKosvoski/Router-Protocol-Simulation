@@ -7,5 +7,5 @@ typedef struct Message {
   // ip address representing msg router destination
   char destination_ip[20]; int destination_port;
   // message content
-  char payload[100];
+  char payload[256];
 } Message;
