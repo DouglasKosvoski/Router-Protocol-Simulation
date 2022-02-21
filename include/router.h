@@ -1,3 +1,9 @@
+/*
+* router.h
+*/
+
+#include <stdlib.h>
+
 typedef struct Router {
   // router id
   pid_t id;
@@ -13,5 +19,4 @@ typedef struct Router {
   int buffer_length;
   // router directly connecteds
   struct Neighbour *neighbours[3];
-
 } Router;

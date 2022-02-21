@@ -1,21 +1,23 @@
-#include <stdio.h>      // input/output
-#include <stdlib.h>     // data convertions
-#include <sys/types.h>  // data types
-#include <unistd.h>     // constant and types
-#include <string.h>
+/*
+* load_config.c
+*/
+
+#include "load_config.h"
 
 // Check if string starts with a specific sufix
 int startswith(const char *original, const char *sufix) {
-   if(strncmp(original, sufix, strlen(sufix)) == 0) {
-     return 1;
-   };
-   return 0;
+  if(strncmp(original, sufix, strlen(sufix)) == 0) {
+    return 1;
+  };
+  return 0;
 }
 
 // Responsible for spliting a buffer at a delimiter and converting char[] into an integer
 void parse_line(char *buff, const char delim[1], char *ori, char *dest, char *cost) {
   char *token = strtok(buff, delim);
   int counter = 0;
+  
+  // loops through line
   while(token != NULL) {
     if (counter == 0) {
       strcpy(ori, token);
@@ -31,13 +33,12 @@ void parse_line(char *buff, const char delim[1], char *ori, char *dest, char *co
   }
 }
 
+// Go through enlaces.config file and search for line with router id, then get its content
 void parse_enlaces_config(char filename[], int rid, char *v) {
-  FILE* filePointer;
   int buffer_size = 255;
-  char buffer[buffer_size];
-  filePointer = fopen(filename, "r");
+  char buffer[buffer_size], asd[50] = "";
+  FILE* filePointer = fopen(filename, "r");
 
-  char asd[50] = "";
   // Loops through the lines
   while(fgets(buffer, buffer_size, filePointer)) {
     // check if line contains valid `id, id, cost` format
@@ -68,10 +69,9 @@ void parse_enlaces_config(char filename[], int rid, char *v) {
 
 // Set router data as port and ip address
 int parse_router_config(char filename[], int rid, int *port, char ip[20]) {
-  FILE* filePointer;
   int buffer_size = 255;
   char buffer[buffer_size];
-  filePointer = fopen(filename, "r");
+  FILE* filePointer = fopen(filename, "r");
 
   int found = 0;
   while(fgets(buffer, buffer_size, filePointer)) {
@@ -93,6 +93,19 @@ int parse_router_config(char filename[], int rid, int *port, char ip[20]) {
 
   fclose(filePointer);
   if (found == 0) {
+    return -1;
+  }
+  return 0;
+}
+
+// Simply clear the terminal
+void clear_terminal() {
+  system("clear");
+}
+
+// Check if router id was passed on execution
+int check_arguments(int args) {
+  if (args < 2) {
     return -1;
   }
   return 0;
