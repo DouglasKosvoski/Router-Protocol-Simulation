@@ -2,7 +2,7 @@
 * neighbour.h
 */
 
-#include <stdlib.h>     // data convertions
+#include <stdlib.h>
 
 typedef struct Neighbour {
   // router id

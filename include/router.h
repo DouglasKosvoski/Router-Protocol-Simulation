@@ -2,7 +2,7 @@
 * router.h
 */
 
-#include <stdlib.h>     // data convertions
+#include <stdlib.h>
 
 typedef struct Router {
   // router id
@@ -19,5 +19,4 @@ typedef struct Router {
   int buffer_length;
   // router directly connecteds
   struct Neighbour *neighbours[3];
-
 } Router;

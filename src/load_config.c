@@ -16,6 +16,8 @@ int startswith(const char *original, const char *sufix) {
 void parse_line(char *buff, const char delim[1], char *ori, char *dest, char *cost) {
   char *token = strtok(buff, delim);
   int counter = 0;
+  
+  // loops through line
   while(token != NULL) {
     if (counter == 0) {
       strcpy(ori, token);
@@ -31,13 +33,12 @@ void parse_line(char *buff, const char delim[1], char *ori, char *dest, char *co
   }
 }
 
+// Go through enlaces.config file and search for line with router id, then get its content
 void parse_enlaces_config(char filename[], int rid, char *v) {
-  FILE* filePointer;
   int buffer_size = 255;
-  char buffer[buffer_size];
-  filePointer = fopen(filename, "r");
+  char buffer[buffer_size], asd[50] = "";
+  FILE* filePointer = fopen(filename, "r");
 
-  char asd[50] = "";
   // Loops through the lines
   while(fgets(buffer, buffer_size, filePointer)) {
     // check if line contains valid `id, id, cost` format
@@ -68,10 +69,9 @@ void parse_enlaces_config(char filename[], int rid, char *v) {
 
 // Set router data as port and ip address
 int parse_router_config(char filename[], int rid, int *port, char ip[20]) {
-  FILE* filePointer;
   int buffer_size = 255;
   char buffer[buffer_size];
-  filePointer = fopen(filename, "r");
+  FILE* filePointer = fopen(filename, "r");
 
   int found = 0;
   while(fgets(buffer, buffer_size, filePointer)) {
@@ -98,15 +98,15 @@ int parse_router_config(char filename[], int rid, int *port, char ip[20]) {
   return 0;
 }
 
+// Simply clear the terminal
 void clear_terminal() {
   system("clear");
 }
 
 // Check if router id was passed on execution
-void check_arguments(int args) {
+int check_arguments(int args) {
   if (args < 2) {
-    printf("\nRouter Id expected !!!\n");
-    printf("Ex: `./router 1` \n\n");
-    exit(1);
+    return -1;
   }
+  return 0;
 }
