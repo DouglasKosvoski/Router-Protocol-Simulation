@@ -1,3 +1,9 @@
+/*
+* neighbour.h
+*/
+
+#include <stdlib.h>     // data convertions
+
 typedef struct Neighbour {
   // router id
   pid_t id;

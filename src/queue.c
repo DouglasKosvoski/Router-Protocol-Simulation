@@ -1,6 +1,6 @@
-#include <stdio.h>      // input/output
-#include <string.h>     // string manipulation
-#include <stdbool.h>
+/*
+* queue.c
+*/
 
 #include "queue.h"
 

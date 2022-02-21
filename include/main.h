@@ -1,13 +1,11 @@
-#include <stdio.h>      // input/output
-#include <stdlib.h>     // data convertions
-#include <sys/types.h>  // data types
+/*
+* main.h
+*/
+
 #include <unistd.h>     // constant and types
 #include <arpa/inet.h>  // internet operations
-#include <sys/socket.h> // sockets definitions
 #include <pthread.h>    // thread manipulation
-#include <string.h>     // string manipulation
 #include <stdbool.h>
-#include <semaphore.h>
 
 #include "routing_table.h"
 #include "load_config.h"
@@ -19,6 +17,11 @@
 /* Configuration files */
 #define enlaces_cfg "./cfg/enlaces.config"
 #define roteador_cfg "./cfg/roteador.config"
+
+pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t out_mutex = PTHREAD_MUTEX_INITIALIZER;
+Routing_table *rt; Router *r1;
+Queue *q_in; Queue *q_out;
 
 void send_distance_vector();
 void set_router(const char *i);

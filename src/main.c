@@ -1,4 +1,8 @@
 /*
+* main.c
+*/
+
+/*
 * Author `Douglas Kosvoski`
 * Class `Redes de Computadores 2021.2`
 *
@@ -9,11 +13,6 @@
 */
 
 #include "main.h"
-
-pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t out_mutex = PTHREAD_MUTEX_INITIALIZER;
-Routing_table *rt; Router *r1;
-Queue *q_in; Queue *q_out;
 
 /* Main */
 int main(int argc, char const *argv[]) {
@@ -28,7 +27,6 @@ int main(int argc, char const *argv[]) {
   
   // configure router and tell neighbours its info 
   set_router(argv[1]);
-  // set_router(argv[1]); send_distance_vector();
   // print some info onto the terminal, id, ip, port, pid
   display_router_info(r1);
   

@@ -1,3 +1,11 @@
+/*
+* queue.h
+*/
+
+#include <stdio.h>      // input/output
+#include <string.h>     // string manipulation
+#include <stdbool.h>
+
 #define CAPACITY 3
 #define ITEM_SIZE 1024
 

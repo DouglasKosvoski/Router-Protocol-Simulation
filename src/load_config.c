@@ -1,15 +1,15 @@
-#include <stdio.h>      // input/output
-#include <stdlib.h>     // data convertions
-#include <sys/types.h>  // data types
-#include <unistd.h>     // constant and types
-#include <string.h>
+/*
+* load_config.c
+*/
+
+#include "load_config.h"
 
 // Check if string starts with a specific sufix
 int startswith(const char *original, const char *sufix) {
-   if(strncmp(original, sufix, strlen(sufix)) == 0) {
-     return 1;
-   };
-   return 0;
+  if(strncmp(original, sufix, strlen(sufix)) == 0) {
+    return 1;
+  };
+  return 0;
 }
 
 // Responsible for spliting a buffer at a delimiter and converting char[] into an integer

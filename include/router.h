@@ -1,3 +1,9 @@
+/*
+* router.h
+*/
+
+#include <stdlib.h>     // data convertions
+
 typedef struct Router {
   // router id
   pid_t id;
