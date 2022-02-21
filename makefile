@@ -14,7 +14,7 @@ SRC = src
 _DEPS = router.h message.h neighbour.h load_config.h queue.h routing_table.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = main.o load_config.o
+_OBJ = main.o load_config.o message.o neighbour.o queue.o router.o routing_table.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
