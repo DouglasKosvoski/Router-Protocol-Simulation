@@ -8,25 +8,6 @@
 * 2022/1
 */
 
-/* Includes */
-#include <stdio.h>      // input/output
-#include <stdlib.h>     // data convertions
-#include <sys/types.h>  // data types
-#include <unistd.h>     // constant and types
-#include <arpa/inet.h>  // internet operations
-#include <sys/socket.h> // sockets definitions
-#include <pthread.h>    // thread manipulation
-#include <string.h>     // string manipulation
-#include <stdbool.h>
-#include <semaphore.h>
-
-/* Custom structures and functions */
-#include "routing_table.h"
-#include "load_config.h"
-#include "neighbour.h"
-#include "router.h"
-#include "message.h"
-#include "queue.h"
 #include "main.h"
 
 pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
