@@ -331,7 +331,9 @@ void *packet_handler(void *) {
         // if is distance vector
         else {
           printf("Distance vector arrived\n");
-          update_distance_vector(rt, msg->payload);
+          if (update_distance_vector(rt, msg->payload, msg->source_port % 10) == 1) {
+            send_distance_vector();
+          };
         }
       }
       // forward message to correct destination, since I am not final destination
@@ -351,8 +353,8 @@ void *sender(void *) {
   char serialized_msg[r1->buffer_length];
   
   while (1) {
+    pthread_mutex_lock(&out_mutex);
     if (queue_size(q_out) > 0) {
-      pthread_mutex_lock(&out_mutex);
       strcpy(serialized_msg, queue_start(q_out));
       deserialize_msg(msg, serialized_msg);
       
@@ -367,8 +369,8 @@ void *sender(void *) {
       printf("\nSending MSG (to->`%s:%d`)...\n", msg->destination_ip, msg->destination_port);
       sendto(clientSocket, serialized_msg, r1->buffer_length, 0, (struct sockaddr *)&serverAddr, addr_size);
       queue_remove(q_out);
-      pthread_mutex_unlock(&out_mutex);
     }
+    pthread_mutex_unlock(&out_mutex);
   }
 }
 
