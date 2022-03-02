@@ -29,6 +29,8 @@ int main(int argc, char const *argv[]) {
   rt = malloc(sizeof(Routing_table)); init_routing_table(rt);
   q_in = malloc(sizeof(Queue)); queue_init(q_in);
   q_out = malloc(sizeof(Queue)); queue_init(q_out);
+  user_messages_received = malloc(sizeof(Queue));
+  queue_init(user_messages_received);
   
   // configure router and tell neighbours its info 
   if (set_router(argv[1]) == -1) {
@@ -132,20 +134,20 @@ void display_router_info() {
 
 // Loop over all neighbours and display useful info about 'em (and itself)
 void display_reachable_routers() {
-  printf("\n  index | cost\n");
-  printf("  ------------\n");
+  printf("\n  Index | Cost | Next hop\n");
+  printf("  ------------------------\n");
 
   for (size_t i = 1; i < SIZE+1; i++) {
     if (rt->routes[i][0] != INF) {
       if (i == r1->id) {
-        printf("    %d* \t| %3d \n", i, rt->routes[i][0]);
+        printf("    %ld* \t| %3d  | %5d \n", i, rt->routes[i][0], rt->routes[i][1]);
       }
       else {
-        printf("    %d \t| %3d \n", i, rt->routes[i][0]);
+        printf("    %ld \t| %3d  | %5d \n", i, rt->routes[i][0], rt->routes[i][1]);
       }
     }
   }
-  printf("  ------------\n");
+  printf("  ------------------------\n");
 }
 
 // Get all attributes from Message and concatenate into a single string
@@ -154,6 +156,8 @@ void serialize_message(char *m, Message *msg) {
 
   // set type
   sprintf(serialized_msg, "%d", msg->type);
+  strncat(serialized_msg, separator, 2);
+  strncat(serialized_msg, msg->timestamp, strlen(msg->timestamp));
   strncat(serialized_msg, separator, 2);
   strncat(serialized_msg, msg->source_ip, strlen(msg->source_ip));
   strncat(serialized_msg, separator, 2);
@@ -182,14 +186,16 @@ void deserialize_msg(Message *msg, char *serialized_msg) {
     if (counter == 0) {
       msg->type = atoi(token);
     } else if (counter == 1) {
-      strcpy(msg->source_ip, token);
+      strcpy(msg->timestamp, token);
     } else if (counter == 2) {
-      msg->source_port = atoi(token);
+      strcpy(msg->source_ip, token);
     } else if (counter == 3) {
-      strcpy(msg->destination_ip, token);
+      msg->source_port = atoi(token);
     } else if (counter == 4) {
-      msg->destination_port = atoi(token);
+      strcpy(msg->destination_ip, token);
     } else if (counter == 5) {
+      msg->destination_port = atoi(token);
+    } else if (counter == 6) {
       strcpy(msg->payload, token);
     }
     counter++;
@@ -223,19 +229,28 @@ void get_user_message() {
   }
   
   Message *msg_object = malloc(sizeof(Message));
+  char temp[20];
+  time_t t = time(NULL); struct tm tm = *localtime(&t);
+  snprintf(temp, sizeof(temp), "%d-%02d-%02d %02d:%02d:%02d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+  strcpy(msg_object->timestamp, temp);
+  
+  printf("%s\n", msg_object->timestamp);
   strcpy(msg_object->source_ip, r1->ip);
   msg_object->source_port = r1->port; msg_object->type = 0;
   
-  // Allow option to send msg to itself (debug/testing purposes)
-  if (neighbour_option == -1) {
+  if (neighbour_option == r1->id) {
     // get port and set msg destination to yourself
     strcpy(msg_object->destination_ip, r1->ip);
     msg_object->destination_port = r1->port;
   }
   else {
-    // set port to chosen neighbour and also set msg destination
-    strcpy(msg_object->destination_ip, r1->neighbours[neighbour_option]->ip);
-    msg_object->destination_port = r1->neighbours[neighbour_option]->port;
+    for (size_t i = 0; i < sizeof(r1->neighbours)/sizeof(r1->neighbours[0]); i++) {
+      if (r1->neighbours[i]->id == neighbour_option) {
+        // set port to chosen neighbour and also set msg destination
+        strcpy(msg_object->destination_ip, r1->neighbours[i]->ip);
+        msg_object->destination_port = r1->neighbours[i]->port;
+      }
+    }
   }
   
   clear_terminal();
@@ -251,6 +266,25 @@ void get_user_message() {
   pthread_mutex_unlock(&out_mutex);
 }
 
+
+void display_received_messages() {
+  if (queue_size(user_messages_received) == 0) {
+    printf("\n ----------------------------");
+    printf("\n -> Queue is Empty \n");
+    printf(" ----------------------------\n");
+    return;
+  }
+  Message *m = malloc(sizeof(Message));
+  char deserialized_msg[r1->buffer_length];
+  
+  printf(" \tFrom \t  |     Content  | \tTimestamp\n");
+  for (size_t i = 0; i < queue_size(user_messages_received); i++) {
+    strcpy(deserialized_msg, user_messages_received->queue[i]);
+    deserialize_msg(m, deserialized_msg);
+    printf(" %10s:%d | %12s | %s\n", m->source_ip, m->source_port, m->payload, m->timestamp);
+  }
+}
+
 // Terminal thread, display menu, get user input and redirect to chosen option
 void *terminal(void *) {
   int option = -1;
@@ -263,6 +297,7 @@ void *terminal(void *) {
     printf("\n * 3 - Send Distance Vector");
     printf("\n * 4 - Display Routing Table");
     printf("\n * 5 - Router Info");
+    printf("\n * 6 - See Received Messages");
     printf("\n * 9 - Clear Terminal");
     printf("\n * 0 - Exit");
     printf("\n ----------------------------");
@@ -278,6 +313,7 @@ void *terminal(void *) {
     else if (option == 3) send_distance_vector();
     else if (option == 4) display_routing_table(rt);
     else if (option == 5) display_router_info(r1);
+    else if (option == 6) display_received_messages();
     else if (option == 9) clear_terminal();
   }
 }
@@ -300,11 +336,12 @@ void *packet_handler(void *) {
       if (strncmp(r1->ip, msg->destination_ip, strlen(msg->destination_ip)) == 0 && r1->port == msg->destination_port) {
         // if is user message
         if (msg->type == 0) {
-          printf("Voce tem uma nova mensagem\n");
+          printf("\n Voce tem uma nova mensagem\n");
+          queue_insert(user_messages_received, queue_start(q_in));
         }
         // if is distance vector
         else {
-          printf("Distance vector arrived\n");
+          printf("\n Distance vector arrived\n");
           if (bellman_ford_distributed(rt, msg->payload, msg->source_port % 10) == 1) {
             send_distance_vector();
           };
