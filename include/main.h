@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include "routing_table.h"
 #include "load_config.h"
@@ -22,6 +23,7 @@ pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t out_mutex = PTHREAD_MUTEX_INITIALIZER;
 Routing_table *rt; Router *r1;
 Queue *q_in; Queue *q_out;
+Queue *user_messages_received;
 
 // Send distance vector to all attached neighbours
 void send_distance_vector();
@@ -43,6 +45,8 @@ void deserialize_msg(Message *msg, char *serialized_msg);
 
 // Get user msg input from terminal
 void get_user_message();
+
+void display_received_messages();
 
 // Terminal thread, display menu, get user input and redirect to chosen option
 void *terminal(void *);
