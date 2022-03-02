@@ -32,7 +32,7 @@ Once the repository is downloaded, enter its main folder.
 
 ## Compiling the program
 
-Within the root folder of the project there is a file named `makefile`. To run it simply:
+Within the root folder of the project there is a file named `makefile`. To run it, simply:
 
     $ make -f makefile
 

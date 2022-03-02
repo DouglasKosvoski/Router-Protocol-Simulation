@@ -131,24 +131,21 @@ void display_router_info() {
 }
 
 // Loop over all neighbours and display useful info about 'em (and itself)
-void display_neighbours_info() {
-  printf("\n Neighbours Information");
-  printf("\n  ------------------------------------------\n");
-  printf(" | index | id \t| cost \t| port \t|     ip    |");
-  printf("\n  -------------------------------------------\n");
-  printf(" (self)");
-  printf("\n  ------------------------------------------\n");
-  printf(" |  %d   | %d \t| %d \t| %d | %s | \n", -1, r1->id, 0, r1->port, r1->ip);
-  printf("  ------------------------------------------\n");
-  printf(" (neighbours)\n");
-  printf("  ------------------------------------------\n");
+void display_reachable_routers() {
+  printf("\n  index | cost\n");
+  printf("  ------------\n");
 
-  // Loop over neighbours and print their info
-  for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++) {
-    if (r1->neighbours[i]->cost > 15) { continue; };
-    printf(" |   %ld \t | %d \t| %d \t| %d | %s | \n", i, r1->neighbours[i]->id,
-    r1->neighbours[i]->cost, r1->neighbours[i]->port, r1->neighbours[i]->ip);
-  } printf("  ------------------------------------------\n");
+  for (size_t i = 1; i < SIZE+1; i++) {
+    if (rt->routes[i][0] != INF) {
+      if (i == r1->id) {
+        printf("    %d* \t| %3d \n", i, rt->routes[i][0]);
+      }
+      else {
+        printf("    %d \t| %3d \n", i, rt->routes[i][0]);
+      }
+    }
+  }
+  printf("  ------------\n");
 }
 
 // Get all attributes from Message and concatenate into a single string
@@ -208,9 +205,22 @@ void get_user_message() {
   // (NOTE) In the future this will get all avaiable routers from the distance vector
   printf("\n Select Neighbour:\n");
   // display a table with all avaiable router to connect with
-  display_neighbours_info(r1);
+  display_reachable_routers(r1);
   // get user input
   printf(" Option (index): "); scanf("%d", &neighbour_option);
+  
+  int neighbour_valid = 0;
+  for (size_t i = 1; i < SIZE+1; i++) {
+    if (rt->routes[i][0] != INF) {
+      if (i == neighbour_option) {
+        neighbour_valid = 1;
+      }
+    }
+  }
+  if (!neighbour_valid) {
+    printf("\n Invalid Input\n");
+    return;
+  }
   
   Message *msg_object = malloc(sizeof(Message));
   strcpy(msg_object->source_ip, r1->ip);
@@ -249,17 +259,14 @@ void *terminal(void *) {
     // display options
     printf("\n --------- Main Menu --------");
     printf("\n * 1 - Send Message");
-    // printf("\n * 2 - See Out Queue");
-    // printf("\n * 3 - See In Queue");
-    printf("\n * 4 - Display Neighbours");
-    printf("\n * 6 - Send Distance Vector");
-    printf("\n * 7 - Routing Table");
-    printf("\n * 8 - Router Info");
+    printf("\n * 2 - Display Reachable Routers");
+    printf("\n * 3 - Send Distance Vector");
+    printf("\n * 4 - Display Routing Table");
+    printf("\n * 5 - Router Info");
     printf("\n * 9 - Clear Terminal");
     printf("\n * 0 - Exit");
     printf("\n ----------------------------");
-    printf("\n option: ");
-    scanf("%d", &option);
+    printf("\n option: "); scanf("%d", &option);
 
     clear_terminal();
     if (option == 0) {
@@ -267,12 +274,10 @@ void *terminal(void *) {
       exit(0);
     }
     else if (option == 1) get_user_message();
-    // else if (option == 2) display_queue_content(q_out);
-    // else if (option == 3) display_queue_content(q_in);
-    else if (option == 4) display_neighbours_info(r1);
-    else if (option == 6) send_distance_vector();
-    else if (option == 7) display_routing_table(rt);
-    else if (option == 8) display_router_info(r1);
+    else if (option == 2) display_reachable_routers(r1);
+    else if (option == 3) send_distance_vector();
+    else if (option == 4) display_routing_table(rt);
+    else if (option == 5) display_router_info(r1);
     else if (option == 9) clear_terminal();
   }
 }
