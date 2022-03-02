@@ -46,6 +46,8 @@ void deserialize_msg(Message *msg, char *serialized_msg);
 // Get user msg input from terminal
 void get_user_message();
 
+void display_received_messages();
+
 // Terminal thread, display menu, get user input and redirect to chosen option
 void *terminal(void *);
 
