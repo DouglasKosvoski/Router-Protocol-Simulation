@@ -12,7 +12,6 @@
 #include "load_config.h"
 #include "neighbour.h"
 #include "router.h"
-#include "message.h"
 #include "queue.h"
 
 /* Configuration files */
@@ -36,12 +35,6 @@ void display_router_info();
 
 // Loop over all neighbours and display useful info about 'em (and itself)
 void display_neighbours_info();
-
-// Get all attributes from Message and concatenate into a single string
-void serialize_message(char *m, Message *msg);
-
-// Parse string into Message object
-void deserialize_msg(Message *msg, char *serialized_msg);
 
 // Get user msg input from terminal
 void get_user_message();

@@ -12,8 +12,12 @@ void queue_init(Queue *q) {
 }
 
 // Retrieve first element from the queue
-char* queue_start(Queue *q) {
-  return q->queue[q->head];
+Message* queue_start(Queue *q) {
+  Message *zxc = malloc(sizeof(Message));
+  zxc = (Message *)*q->queue[q->head];
+  printf("Start `%s`\n", zxc->payload);
+  return zxc;
+  // return (Message *)*q->queue[q->head];
 }
 
 // Check if there is anything on it, returns True if empty and False otherwise
@@ -32,12 +36,13 @@ int queue_size(Queue *q) {
 }
 
 // Insert element at the end of queue, if any slot are avaiable
-void queue_insert(Queue *q, char data[]) {
+void queue_insert(Queue *q, Message *m) {
   if(!queue_is_full(q)) {
     if(q->tail == CAPACITY-1) {
       q->tail = -1;
     }
-    strcpy(q->queue[++q->tail], data);
+    
+    *q->queue[++q->tail] = m;
     q->item_count++;
   }
 }
@@ -58,8 +63,16 @@ void display_queue_content(Queue *q) {
     printf(" ----------------------------\n");
     return;
   }
+
   for (size_t i = 0; i < CAPACITY; i++) {
-    printf("(%ld) | %s\n", i, q->queue[i]);
+    printf("%ld\n", i);
+    // Message *zxc = malloc(sizeof(Message));
+    // zxc = (Message *)*q->queue[0];
+    // printf("%s\n", zxc->payload);
+    // 
+    // // printf("M:%ld Q:%ld que:%ld in:%ld\n", sizeof(Message), sizeof(q), sizeof(q->queue), sizeof(q->queue[0]));
+    // exit(0);
+    
   }
 }
 
