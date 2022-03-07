@@ -59,3 +59,5 @@ void *sender(void *);
 
 // Receiver thread, is always linstening to incoming data on specified port
 void *receiver(void *);
+
+void *send_rt_periodically(void *);
