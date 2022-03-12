@@ -10,8 +10,8 @@ ODIR = obj
 # directory containing source code
 SRC = src
 
-_DEPS = main.h load_config.h message.h neighbour.h queue.h router.h routing_table.h
-_OBJS = main.o load_config.o message.o neighbour.o queue.o router.o routing_table.o
+_DEPS = main.h utils.h message.h neighbour.h queue.h router.h routing_table.h
+_OBJS = main.o utils.o message.o neighbour.o queue.o router.o routing_table.o
 
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJS))

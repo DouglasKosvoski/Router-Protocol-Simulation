@@ -9,7 +9,7 @@
 #include <time.h>
 
 #include "routing_table.h"
-#include "load_config.h"
+#include "utils.h"
 #include "neighbour.h"
 #include "router.h"
 #include "message.h"

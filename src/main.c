@@ -188,7 +188,7 @@ void serialize_message(char *m, Message *msg) {
   
   strncat(serialized_msg, separator, 2);
   strncat(serialized_msg, msg->payload, strlen(msg->payload));
-
+  
   strcpy(m, serialized_msg);
 }
 
@@ -448,6 +448,7 @@ void *receiver(void *) {
     
     // add message to incoming queue
     pthread_mutex_lock(&in_mutex);
+    printf("`%s`\n", buffer); exit(0);
     queue_insert(q_in, buffer);
     pthread_mutex_unlock(&in_mutex);
   }
