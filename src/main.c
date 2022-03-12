@@ -161,7 +161,7 @@ void display_reachable_routers() {
 
 // Get all attributes from Message and concatenate into a single string
 void serialize_message(char *m, Message *msg) {
-  char serialized_msg[1024] = "", separator[2] = "^", temp[20];
+  char serialized_msg[sizeof(Message)] = "", separator[2] = "^", temp[20];
 
   // message type
   sprintf(serialized_msg, "%d", msg->type);
@@ -189,6 +189,9 @@ void serialize_message(char *m, Message *msg) {
   strncat(serialized_msg, separator, 2);
   strncat(serialized_msg, msg->payload, strlen(msg->payload));
   
+  strncat(serialized_msg, separator, 2);
+  sprintf(temp, "%d", msg_id);
+  strncat(serialized_msg, temp, strlen(temp));
   strcpy(m, serialized_msg);
 }
 
@@ -218,6 +221,8 @@ void deserialize_msg(Message *msg, char *serialized_msg) {
       msg->final_destination_id = atoi(token);
     } else if (counter == 7) {
       strcpy(msg->payload, token);
+    } else if (counter == 8) {
+      msg->id = atoi(token);
     }
     counter++;
     token = strtok(NULL, delim);
@@ -293,11 +298,11 @@ void display_received_messages() {
   Message *m = malloc(sizeof(Message));
   char deserialized_msg[r1->buffer_length];
   
-  printf(" \tFrom \t  |     Content  | \tTimestamp\n");
+  printf(" id |       From \t|     Content  | \tTimestamp    |\n");
   for (size_t i = 0; i < queue_size(user_messages_received); i++) {
     strcpy(deserialized_msg, user_messages_received->queue[i]);
     deserialize_msg(m, deserialized_msg);
-    printf(" %10s:%d | %12s | %s\n", m->source_ip, m->source_port, m->payload, m->timestamp);
+    printf("%3d | %10s:%d  | %12s | %s |\n", m->id, m->source_ip, m->source_port, m->payload, m->timestamp);
   }
 }
 
@@ -369,7 +374,7 @@ void *packet_handler(void *) {
       else {
         char deserialized_msg[r1->buffer_length], serialized_msg[r1->buffer_length];
         
-        printf("\n Forwarding from {%s:%d} to {%s:%d}\n", msg->source_ip, msg->source_port, msg->next_hop_destination_ip, msg->next_hop_destination_port, msg->final_destination_id);
+        printf("\n Router '%d' Forwarding msg '%d' from {%s:%d} to {%s:%d}\n", r1->id, msg->id, msg->source_ip, msg->source_port, msg->next_hop_destination_ip, msg->next_hop_destination_port, msg->final_destination_id);
         strcpy(deserialized_msg, queue_start(q_in));
         deserialize_msg(msg, deserialized_msg);
 
@@ -411,8 +416,9 @@ void *sender(void *) {
       memset(serverAddr.sin_zero, '\0', sizeof(serverAddr.sin_zero));
       socklen_t addr_size = sizeof(serverAddr);
 
-      printf("\n Sending msg to {%s:%d}\n", msg->next_hop_destination_ip, msg->next_hop_destination_port);
-      sendto(clientSocket, serialized_msg, r1->buffer_length, 0, (struct sockaddr *)&serverAddr, addr_size);
+      msg->id = msg_id++;
+      printf("\n Sending msg '%d' to {%s:%d}\n", msg->id, msg->next_hop_destination_ip, msg->next_hop_destination_port);
+      sendto(clientSocket, serialized_msg, sizeof(serialized_msg), 0, (struct sockaddr *)&serverAddr, addr_size);
       queue_remove(q_out);
     }
     pthread_mutex_unlock(&out_mutex);
@@ -448,7 +454,6 @@ void *receiver(void *) {
     
     // add message to incoming queue
     pthread_mutex_lock(&in_mutex);
-    printf("`%s`\n", buffer); exit(0);
     queue_insert(q_in, buffer);
     pthread_mutex_unlock(&in_mutex);
   }
