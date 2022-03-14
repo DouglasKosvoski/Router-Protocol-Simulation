@@ -2,7 +2,7 @@
 * message.h
 */
 
-static int msg_id = 0; 
+static int msg_id = 0;
 
 typedef struct Message {
   // whether msg is for sending a user-text or vector-control

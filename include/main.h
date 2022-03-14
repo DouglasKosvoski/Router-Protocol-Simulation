@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdbool.h>
 #include <time.h>
 
@@ -19,11 +20,14 @@
 #define enlaces_cfg "./cfg/enlaces.config"
 #define roteador_cfg "./cfg/roteador.config"
 
+// sleep time between each distance vector sharing
+#define RT_INTERVAL 30
+
 pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t out_mutex = PTHREAD_MUTEX_INITIALIZER;
+Queue *q_in, *q_out, *user_messages_received;
 Routing_table *rt; Router *r1;
-Queue *q_in; Queue *q_out;
-Queue *user_messages_received;
+sem_t sem_in, sem_out;
 
 // Send distance vector to all attached neighbours
 void send_distance_vector();

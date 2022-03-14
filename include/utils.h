@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // Check if string starts with a specific sufix
 int startswith(const char *original, const char *sufix);
@@ -23,3 +24,5 @@ void clear_terminal();
 
 // Check if router id was passed on execution
 int check_arguments(int args);
+
+void get_timestamp(char *tt);
