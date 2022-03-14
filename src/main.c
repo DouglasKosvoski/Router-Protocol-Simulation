@@ -32,35 +32,42 @@ int main(int argc, char const *argv[]) {
   user_messages_received = malloc(sizeof(Queue));
   queue_init(user_messages_received);
   
+  // initialize semaphores
+  if (sem_init(&sem_in, 0, 0) == -1) {
+    printf(" Couldn't Initialize Semahore\n"); exit(-1);
+  }
+  if (sem_init(&sem_out, 0, 0) == -1) {
+    printf(" Couldn't Initialize Semahore\n"); exit(-1);
+  }
+  
   // configure router and tell neighbours its info 
   if (set_router(argv[1]) == -1) {
     printf("Router not Found!\n");
     return -1;
   }
-  
   // Create threads
-  pthread_t th_receiver, th_terminal, th_handler, th_sender;
+  pthread_t th_receiver, th_terminal, th_handler, th_sender, th_send_rt_periodically;
   pthread_create(&th_terminal, NULL, (void *)terminal, NULL);
   pthread_create(&th_receiver, NULL, (void *)receiver, NULL);
   pthread_create(&th_handler, NULL, (void *)packet_handler, NULL);
   pthread_create(&th_sender, NULL, (void *)sender, NULL);
+  pthread_create(&th_send_rt_periodically, NULL, (void *)send_rt_periodically, NULL);
   
   // Join threads
   pthread_join(th_receiver, NULL); pthread_join(th_terminal, NULL);
   pthread_join(th_handler, NULL); pthread_join(th_sender, NULL);
+  pthread_join(th_send_rt_periodically, NULL);
   return 0;
 };
 
 // Send distance vector to all attached neighbours
 void send_distance_vector() {
-  char table_values[256], distance_vector[r1->buffer_length], temp[20];
+  char table_values[256], distance_vector[r1->buffer_length];
   Message *msg = malloc(sizeof(Message));
   
   // type 1 = distance vector
   msg->type = 1; strcpy(msg->source_ip, r1->ip); msg->source_port = r1->port;
-  time_t t = time(NULL); struct tm tm = *localtime(&t);
-  snprintf(temp, sizeof(temp), "%d-%02d-%02d %02d:%02d:%02d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-  strcpy(msg->timestamp, temp);
+  get_timestamp(msg->timestamp);
   
   // loop over neighbours here, setting destination accordinly
   for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++) {
@@ -76,7 +83,7 @@ void send_distance_vector() {
 
     serialize_message(distance_vector, msg);
     pthread_mutex_lock(&out_mutex);
-    queue_insert(q_out, distance_vector);
+    queue_insert(q_out, distance_vector); sem_post(&sem_out);
     pthread_mutex_unlock(&out_mutex);
   }
 }
@@ -154,7 +161,7 @@ void display_reachable_routers() {
 
 // Get all attributes from Message and concatenate into a single string
 void serialize_message(char *m, Message *msg) {
-  char serialized_msg[1024] = "", separator[2] = "^", temp[20];
+  char serialized_msg[sizeof(Message)] = "", separator[2] = "^", temp[20];
 
   // message type
   sprintf(serialized_msg, "%d", msg->type);
@@ -181,15 +188,16 @@ void serialize_message(char *m, Message *msg) {
   
   strncat(serialized_msg, separator, 2);
   strncat(serialized_msg, msg->payload, strlen(msg->payload));
-
+  
+  strncat(serialized_msg, separator, 2);
+  sprintf(temp, "%d", msg_id);
+  strncat(serialized_msg, temp, strlen(temp));
   strcpy(m, serialized_msg);
 }
 
 // Parse string into Message object
 void deserialize_msg(Message *msg, char *serialized_msg) {
-  char temp[1024], *delim = "^";
-  int counter = 0;
-  
+  char temp[1024], *delim = "^"; int counter = 0;
   strcpy(temp, serialized_msg);
   char *token = strtok(temp, "^");
   
@@ -211,6 +219,8 @@ void deserialize_msg(Message *msg, char *serialized_msg) {
       msg->final_destination_id = atoi(token);
     } else if (counter == 7) {
       strcpy(msg->payload, token);
+    } else if (counter == 8) {
+      msg->id = atoi(token);
     }
     counter++;
     token = strtok(NULL, delim);
@@ -219,8 +229,7 @@ void deserialize_msg(Message *msg, char *serialized_msg) {
 
 // Get user msg input from terminal
 void get_user_message() {
-  int neighbour_option = -1;
-  char msg_serialized[100];
+  int neighbour_option = -1; char msg_serialized[100];
   
   // (NOTE) In the future this will get all avaiable routers from the distance vector
   printf("\n Select Neighbour:\n");
@@ -242,40 +251,37 @@ void get_user_message() {
     return;
   }
   
-  Message *msg_object = malloc(sizeof(Message));
-  char temp[20];
-  time_t t = time(NULL); struct tm tm = *localtime(&t);
-  snprintf(temp, sizeof(temp), "%d-%02d-%02d %02d:%02d:%02d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-  strcpy(msg_object->timestamp, temp);
-  strcpy(msg_object->source_ip, r1->ip);
-  msg_object->source_port = r1->port; msg_object->type = 0;
-  msg_object->final_destination_id = neighbour_option;
+  Message *msg = malloc(sizeof(Message));
+  get_timestamp(msg->timestamp);
+  strcpy(msg->source_ip, r1->ip);
+  msg->source_port = r1->port; msg->type = 0;
+  msg->final_destination_id = neighbour_option;
   
-  if (msg_object->final_destination_id == r1->id) {
+  if (msg->final_destination_id == r1->id) {
     // get port and set msg destination to yourself
-    strcpy(msg_object->next_hop_destination_ip, r1->ip);
-    msg_object->next_hop_destination_port = r1->port;
+    strcpy(msg->next_hop_destination_ip, r1->ip);
+    msg->next_hop_destination_port = r1->port;
   }
   else {
     for (size_t i = 0; i < sizeof(r1->neighbours)/sizeof(r1->neighbours[0]); i++) {
-      if (r1->neighbours[i]->id == rt->routes[msg_object->final_destination_id][1]) {
+      if (r1->neighbours[i]->id == rt->routes[msg->final_destination_id][1]) {
         // set port to chosen neighbour and also set msg destination
-        strcpy(msg_object->next_hop_destination_ip, r1->neighbours[i]->ip);
-        msg_object->next_hop_destination_port = r1->neighbours[i]->port;
+        strcpy(msg->next_hop_destination_ip, r1->neighbours[i]->ip);
+        msg->next_hop_destination_port = r1->neighbours[i]->port;
       }
     }
   }
   
   clear_terminal();
   printf("\n ------------ Send Msg ------------\n Type msg to send to: ");
-  scanf("%s", &msg_object->payload);
+  scanf("%s", &msg->payload);
   
   // basically get all attributes from Message and concatenate into a single string
-  serialize_message(msg_serialized, msg_object);
+  serialize_message(msg_serialized, msg);
   
   // add message to outgoing queue
   pthread_mutex_lock(&out_mutex);
-  queue_insert(q_out, msg_serialized);
+  queue_insert(q_out, msg_serialized); sem_post(&sem_out);
   pthread_mutex_unlock(&out_mutex);
 }
 
@@ -289,11 +295,11 @@ void display_received_messages() {
   Message *m = malloc(sizeof(Message));
   char deserialized_msg[r1->buffer_length];
   
-  printf(" \tFrom \t  |     Content  | \tTimestamp\n");
+  printf(" id |       From \t|     Content  | \tTimestamp    |\n");
   for (size_t i = 0; i < queue_size(user_messages_received); i++) {
     strcpy(deserialized_msg, user_messages_received->queue[i]);
     deserialize_msg(m, deserialized_msg);
-    printf(" %10s:%d | %12s | %s\n", m->source_ip, m->source_port, m->payload, m->timestamp);
+    printf("%3d | %10s:%d  | %12s | %s |\n", m->id, m->source_ip, m->source_port, m->payload, m->timestamp);
   }
 }
 
@@ -316,10 +322,7 @@ void *terminal(void *) {
     printf("\n option: "); scanf("%d", &option);
 
     clear_terminal();
-    if (option == 0) {
-      printf("\n Program finished...\n\n");
-      exit(0);
-    }
+    if (option == 0) { printf("\n Program finished...\n\n"); exit(0); }
     else if (option == 1) get_user_message();
     else if (option == 2) display_reachable_routers(r1);
     else if (option == 3) send_distance_vector();
@@ -336,6 +339,7 @@ void *packet_handler(void *) {
   char deserialized_msg[r1->buffer_length];
 
   while (1) {
+    sem_wait(&sem_in);
     // listen to incoming queue
     pthread_mutex_lock(&in_mutex);
     
@@ -348,23 +352,24 @@ void *packet_handler(void *) {
       if (r1->id == msg->final_destination_id) {
         // if is user message
         if (msg->type == 0) {
-          printf("\n Voce tem uma nova mensagem\n");
+          printf("\n ### You have a new message ###\n");
           queue_insert(user_messages_received, queue_start(q_in));
+          sem_post(&sem_in);
         }
         // if is distance vector
         else {
-          printf("\n Distance vector arrived\n");
+          printf("\n Distance vector arrived from {%s:%d}\n", msg->source_ip, msg->source_port);
           if (bellman_ford_distributed(rt, msg->payload, msg->source_port % 10) == 1) {
+            char temp[20]; get_timestamp(temp);
+            printf("\n Routing Updated {%s}", temp); display_routing_table(rt);
             send_distance_vector();
           };
         }
       }
       // forward message to correct destination, since I am not final destination
       else {
-        char deserialized_msg[r1->buffer_length];
-        char serialized_msg[r1->buffer_length];
-        
-        printf("\n Forwarding\n");
+        char deserialized_msg[r1->buffer_length], serialized_msg[r1->buffer_length];
+        printf("\n Router '%d' Forwarding msg '%d' from {%s:%d} to {%s:%d}, final=%d\n", r1->id, msg->id, msg->source_ip, msg->source_port, msg->next_hop_destination_ip, msg->next_hop_destination_port, msg->final_destination_id);
         strcpy(deserialized_msg, queue_start(q_in));
         deserialize_msg(msg, deserialized_msg);
 
@@ -378,7 +383,7 @@ void *packet_handler(void *) {
         serialize_message(serialized_msg, msg);
 
         pthread_mutex_lock(&out_mutex);
-        queue_insert(q_out, serialized_msg);
+        queue_insert(q_out, serialized_msg); sem_post(&sem_out);
         pthread_mutex_unlock(&out_mutex);
       }
       queue_remove(q_in);
@@ -393,6 +398,9 @@ void *sender(void *) {
   char serialized_msg[r1->buffer_length];
   
   while (1) {
+    printf("sender\n");
+    sem_wait(&sem_out);
+    printf("sender2\n");
     pthread_mutex_lock(&out_mutex);
     if (queue_size(q_out) > 0) {
       strcpy(serialized_msg, queue_start(q_out));
@@ -406,8 +414,9 @@ void *sender(void *) {
       memset(serverAddr.sin_zero, '\0', sizeof(serverAddr.sin_zero));
       socklen_t addr_size = sizeof(serverAddr);
 
-      printf("\n Sending MSG (to->`%s:%d`)...\n", msg->next_hop_destination_ip, msg->next_hop_destination_port);
-      sendto(clientSocket, serialized_msg, r1->buffer_length, 0, (struct sockaddr *)&serverAddr, addr_size);
+      msg->id = msg_id++;
+      printf("\n Sending msg '%d' to {%s:%d}\n", msg->id, msg->next_hop_destination_ip, msg->next_hop_destination_port);
+      sendto(clientSocket, serialized_msg, sizeof(serialized_msg), 0, (struct sockaddr *)&serverAddr, addr_size);
       queue_remove(q_out);
     }
     pthread_mutex_unlock(&out_mutex);
@@ -443,8 +452,14 @@ void *receiver(void *) {
     
     // add message to incoming queue
     pthread_mutex_lock(&in_mutex);
-    printf("\n MSG Received...\n");
-    queue_insert(q_in, buffer);
+    queue_insert(q_in, buffer); sem_post(&sem_in);
     pthread_mutex_unlock(&in_mutex);
+  }
+}
+
+void *send_rt_periodically(void *) {
+  while (1) {
+    sleep(RT_INTERVAL);
+    send_distance_vector();
   }
 }

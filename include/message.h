@@ -2,6 +2,8 @@
 * message.h
 */
 
+static int msg_id = 0;
+
 typedef struct Message {
   // whether msg is for sending a user-text or vector-control
   // 0 = msg; 1 = control
@@ -17,4 +19,5 @@ typedef struct Message {
   int final_destination_id;
   // message content
   char payload[256];
+  int id;
 } Message;
