@@ -1,5 +1,5 @@
 /*
-* router.c
-*/
+ * router.c
+ */
 
 #include "router.h"

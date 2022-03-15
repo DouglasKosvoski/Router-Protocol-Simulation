@@ -1,19 +1,25 @@
 /*
-* queue.h
-*/
+ * queue.h
+ */
 
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 
-#define CAPACITY 3
+// max Queue size, how many objects it can store
+#define CAPACITY 5
+// max item size an object can have
 #define ITEM_SIZE 1024
 
-typedef struct Queue {
+typedef struct Queue
+{
+  // start of the Queue
   int head;
-  // remember to set tail = -1;
+  // end of the Queue
   int tail;
+  // how many items stored
   int item_count;
+  // Queue storage containing the content
   char queue[CAPACITY][ITEM_SIZE];
 } Queue;
 
@@ -21,7 +27,7 @@ typedef struct Queue {
 void queue_init(Queue *q);
 
 // Retrieve first element from the queue
-char* queue_start(Queue *q);
+char *queue_start(Queue *q);
 
 // Check if there is anything on it, returns True if empty and False otherwise
 bool queue_is_empty(Queue *q);

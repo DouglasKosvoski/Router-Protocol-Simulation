@@ -1,10 +1,11 @@
 /*
-* neighbour.h
-*/
+ * neighbour.h
+ */
 
 #include <stdlib.h>
 
-typedef struct Neighbour {
+typedef struct Neighbour
+{
   // router id
   pid_t id;
   // cost representing weighted graph
