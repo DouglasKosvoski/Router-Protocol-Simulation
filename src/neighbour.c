@@ -1,5 +1,5 @@
 /*
-* neighbour.c
-*/
+ * neighbour.c
+ */
 
 #include "neighbour.h"

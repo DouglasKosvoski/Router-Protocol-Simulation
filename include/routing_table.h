@@ -1,6 +1,6 @@
 /*
-* routing_table.h
-*/
+ * routing_table.h
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,15 +11,16 @@
 #define INF 99
 #define SIZE 6
 
-typedef struct Routing_table {
-  int routes[SIZE+1][2];  
+typedef struct Routing_table
+{
+  int routes[SIZE + 1][2];
 } Routing_table;
 
 // Initialize default values to Routing Table (need to be called manually)
 void init_routing_table(Routing_table *rt);
 
 // Get self distance vector and serialize to string
-void sply(Routing_table *rt, char *str);
+void serialize_dt(Routing_table *rt, char *str);
 
 // Display avaiable routes with cost and next hop
 void display_routing_table(Routing_table *rt);

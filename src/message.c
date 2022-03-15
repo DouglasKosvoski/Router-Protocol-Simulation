@@ -1,5 +1,5 @@
 /*
-* message.c
-*/
+ * message.c
+ */
 
 #include "message.h"

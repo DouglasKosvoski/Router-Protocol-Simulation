@@ -1,10 +1,11 @@
 /*
-* router.h
-*/
+ * router.h
+ */
 
 #include <stdlib.h>
 
-typedef struct Router {
+typedef struct Router
+{
   // router id
   pid_t id;
   // process id
@@ -17,6 +18,6 @@ typedef struct Router {
   int port;
   // max buffer size
   int buffer_length;
-  // router directly connecteds
+  // routers directly connected
   struct Neighbour *neighbours[3];
 } Router;

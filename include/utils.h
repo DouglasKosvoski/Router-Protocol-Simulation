@@ -1,6 +1,6 @@
 /*
-* load_config.h
-*/
+ * load_config.h
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
