@@ -461,6 +461,10 @@ void *packet_handler(void *arg)
           queue_insert(q_user_msgs, queue_start(q_in));
           sem_post(&sem_in);
         }
+        else if (msg->type == 2)
+        {
+          // add to ACK queue
+        }
         // if is distance vector
         else
         {
@@ -529,11 +533,58 @@ void *sender(void *arg)
       socklen_t addr_size = sizeof(serverAddr);
 
       msg->id = msg_id++;
-      printf("\n Sending msg '%d' to {%s:%d}\n", msg->id, msg->next_hop_destination_ip, msg->next_hop_destination_port);
+      printf("\n (%d) Sending msg '%d' to {%s:%d}\n", msg->type, msg->id, msg->next_hop_destination_ip, msg->next_hop_destination_port);
       sendto(clientSocket, serialized_msg, sizeof(serialized_msg), 0, (struct sockaddr *)&serverAddr, addr_size);
       queue_remove(q_out);
     }
     pthread_mutex_unlock(&out_mutex);
+  }
+}
+
+// send reply
+void reply(char *buffer)
+{
+  Message *mm = malloc(sizeof(Message));
+  deserialize_msg(mm, buffer);
+
+  if (mm->source_port != r1->port && mm->type != 2)
+  {
+    mm->type = 2;
+    mm->final_destination_id = mm->source_port % 10;
+    mm->source_port = r1->port;
+    strcpy(mm->source_ip, r1->ip);
+    strcpy(mm->payload, "ACK");
+
+    for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++)
+    {
+      if (r1->neighbours[i]->id == rt->routes[mm->final_destination_id][1])
+      {
+        // set port to chosen neighbour and also set mm destination
+        strcpy(mm->next_hop_destination_ip, r1->neighbours[i]->ip);
+        mm->next_hop_destination_port = r1->neighbours[i]->port;
+        break;
+      }
+    }
+
+    serialize_message(buffer, mm);
+    pthread_mutex_lock(&out_mutex);
+    queue_insert(q_out, buffer);
+    sem_post(&sem_out);
+    pthread_mutex_unlock(&out_mutex);
+
+    // printf("------------------\n");
+    // printf("id: %d\n", mm->id);
+    // printf("type: %d\n", mm->type);
+    // printf("time: %s\n", mm->timestamp);
+    // printf("src: %s%d\n", mm->source_ip, mm->source_port);
+    // printf("NH: %s%d\n", mm->next_hop_destination_ip, mm->next_hop_destination_port);
+    // printf("payload: %s\n", mm->payload);
+    // printf("------------------\n");
+    // exit(0);
+  }
+  else
+  {
+    printf("sou destino do ACK\n");
   }
 }
 
@@ -566,13 +617,14 @@ void *receiver(void *arg)
     // clear buffer
     memset(buffer, 0, strlen(buffer));
     // receive data
-    recvfrom(udp_socket, buffer, r1->buffer_length, 0, (struct sockaddr *)&serverStorage, &addr_size);
-
+    recvfrom(udp_socket, buffer, r1->buffer_length, MSG_WAITALL, (struct sockaddr *)&serverStorage, &addr_size);
     // add message to incoming queue
     pthread_mutex_lock(&in_mutex);
     queue_insert(q_in, buffer);
     sem_post(&sem_in);
     pthread_mutex_unlock(&in_mutex);
+
+    reply(buffer);
   }
 }
 
