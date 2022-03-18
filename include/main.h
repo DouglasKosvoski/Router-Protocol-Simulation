@@ -28,10 +28,11 @@
 // mutexes to control incoming and outgoing Queues
 pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t out_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t ack_mutex = PTHREAD_MUTEX_INITIALIZER;
 // semaphores to control Queue state
 sem_t sem_in, sem_out;
 // incoming and outgoing Queues, aswell as Queue to store user data
-Queue *q_in, *q_out, *q_user_msgs;
+Queue *q_in, *q_out, *q_user_msgs, *q_ack;
 // router routing table
 Routing_table *rt;
 // self Router
@@ -78,5 +79,6 @@ void *sender(void *arg);
 // Receiver thread, is always linstening to incoming data on specified port
 void *receiver(void *arg);
 
-// Perform rountines such as periodically sending distance vector to neighbours
-void *routine(void *arg);
+void *rt_routine(void *arg);
+
+void *ack_routine(void *arg);

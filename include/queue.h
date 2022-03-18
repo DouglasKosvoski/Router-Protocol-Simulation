@@ -7,7 +7,7 @@
 #include <stdbool.h>
 
 // max Queue size, how many objects it can store
-#define CAPACITY 5
+#define CAPACITY 15
 // max item size an object can have
 #define ITEM_SIZE 1024
 

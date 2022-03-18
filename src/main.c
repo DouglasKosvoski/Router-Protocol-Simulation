@@ -35,6 +35,8 @@ int main(int argc, char const *argv[])
   queue_init(q_out);
   q_user_msgs = malloc(sizeof(Queue));
   queue_init(q_user_msgs);
+  q_ack = malloc(sizeof(Queue));
+  queue_init(q_ack);
 
   // initialize semaphores
   if (sem_init(&sem_in, 0, 0) == -1)
@@ -56,19 +58,21 @@ int main(int argc, char const *argv[])
   }
 
   // Create threads
-  pthread_t th_receiver, th_terminal, th_handler, th_sender, th_routine;
+  pthread_t th_receiver, th_terminal, th_handler, th_sender, th_rt_routine, th_ack_routine;
   pthread_create(&th_terminal, NULL, (void *)terminal, NULL);
   pthread_create(&th_receiver, NULL, (void *)receiver, NULL);
   pthread_create(&th_handler, NULL, (void *)packet_handler, NULL);
   pthread_create(&th_sender, NULL, (void *)sender, NULL);
-  pthread_create(&th_routine, NULL, (void *)routine, NULL);
+  pthread_create(&th_rt_routine, NULL, (void *)rt_routine, NULL);
+  pthread_create(&th_ack_routine, NULL, (void *)ack_routine, NULL);
 
   // Join threads
   pthread_join(th_receiver, NULL);
   pthread_join(th_terminal, NULL);
   pthread_join(th_handler, NULL);
   pthread_join(th_sender, NULL);
-  pthread_join(th_routine, NULL);
+  pthread_join(th_ack_routine, NULL);
+  pthread_join(th_rt_routine, NULL);
   return 0;
 }
 
@@ -547,44 +551,45 @@ void reply(char *buffer)
   Message *mm = malloc(sizeof(Message));
   deserialize_msg(mm, buffer);
 
-  if (mm->source_port != r1->port && mm->type != 2)
+  // se a msg tem origem em outro roteador
+  if (mm->source_port != r1->port)
   {
-    mm->type = 2;
-    mm->final_destination_id = mm->source_port % 10;
-    mm->source_port = r1->port;
-    strcpy(mm->source_ip, r1->ip);
-    strcpy(mm->payload, "ACK");
-
-    for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++)
+    // se nao for ack, cria o ack e coloca na fila de saida
+    if (mm->type != 2)
     {
-      if (r1->neighbours[i]->id == rt->routes[mm->final_destination_id][1])
+      mm->type = 2;
+      mm->final_destination_id = mm->source_port % 10;
+      mm->source_port = r1->port;
+      strcpy(mm->source_ip, r1->ip);
+      strcpy(mm->payload, "ACK");
+      char temp[20];
+      get_timestamp(temp);
+      strcpy(mm->timestamp, temp);
+      for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++)
       {
-        // set port to chosen neighbour and also set mm destination
-        strcpy(mm->next_hop_destination_ip, r1->neighbours[i]->ip);
-        mm->next_hop_destination_port = r1->neighbours[i]->port;
-        break;
+        if (r1->neighbours[i]->id == rt->routes[mm->final_destination_id][1])
+        {
+          // set port to chosen neighbour and also set mm destination
+          strcpy(mm->next_hop_destination_ip, r1->neighbours[i]->ip);
+          mm->next_hop_destination_port = r1->neighbours[i]->port;
+          break;
+        }
       }
+      serialize_message(buffer, mm);
+      pthread_mutex_lock(&out_mutex);
+      queue_insert(q_out, buffer);
+      sem_post(&sem_out);
+      pthread_mutex_unlock(&out_mutex);
     }
-
-    serialize_message(buffer, mm);
-    pthread_mutex_lock(&out_mutex);
-    queue_insert(q_out, buffer);
-    sem_post(&sem_out);
-    pthread_mutex_unlock(&out_mutex);
-
-    // printf("------------------\n");
-    // printf("id: %d\n", mm->id);
-    // printf("type: %d\n", mm->type);
-    // printf("time: %s\n", mm->timestamp);
-    // printf("src: %s%d\n", mm->source_ip, mm->source_port);
-    // printf("NH: %s%d\n", mm->next_hop_destination_ip, mm->next_hop_destination_port);
-    // printf("payload: %s\n", mm->payload);
-    // printf("------------------\n");
-    // exit(0);
-  }
-  else
-  {
-    printf("sou destino do ACK\n");
+    // se a msg eh do tipo ack, adiciona na fila
+    else
+    {
+      pthread_mutex_lock(&ack_mutex);
+      queue_insert(q_ack, buffer);
+      // printf("Inserindo no QAKC\n\n");
+      // display_queue_content(q_ack);
+      pthread_mutex_unlock(&ack_mutex);
+    }
   }
 }
 
@@ -629,11 +634,43 @@ void *receiver(void *arg)
 }
 
 // Perform rountines such as periodically sending distance vector to neighbours
-void *routine(void *arg)
+void *rt_routine(void *arg)
 {
   while (1)
   {
     sleep(RT_INTERVAL);
     send_distance_vector();
+  }
+}
+
+// Perform rountines such as periodically sending distance vector to neighbours
+void *ack_routine(void *arg)
+{
+  Message *m = malloc(sizeof(Message));
+  Routing_table *rr = malloc(sizeof(Routing_table));
+  init_routing_table(rr);
+  int acks[6] = {0, 0, 0, 0, 0, 0};
+
+  while (1)
+  {
+    sleep(4);
+
+    pthread_mutex_lock(&ack_mutex);
+    for (size_t i = 0; i < queue_size(q_ack); i++)
+    {
+      deserialize_msg(m, q_ack->queue[i]);
+      acks[(m->source_port - 25000) - 1] = 1;
+      // queue_remove(q_ack);
+    }
+
+    for (size_t i = 0; i < sizeof(acks) / sizeof(acks[0]); i++)
+    {
+      printf("%d ", acks[i]);
+    }
+    printf("\n");
+
+    // display_routing_table(rr);
+    // display_routing_table(rt);
+    pthread_mutex_unlock(&ack_mutex);
   }
 }
