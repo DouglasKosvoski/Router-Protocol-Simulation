@@ -23,15 +23,16 @@
 #define roteador_cfg "./cfg/roteador.config"
 
 // sleep time between each distance vector routine
-#define RT_INTERVAL 30
+#define RT_INTERVAL 2
 
 // mutexes to control incoming and outgoing Queues
 pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t out_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t ack_mutex = PTHREAD_MUTEX_INITIALIZER;
 // semaphores to control Queue state
 sem_t sem_in, sem_out;
 // incoming and outgoing Queues, aswell as Queue to store user data
-Queue *q_in, *q_out, *q_user_msgs;
+Queue *q_in, *q_out, *q_user_msgs, *q_ack;
 // router routing table
 Routing_table *rt;
 // self Router
@@ -47,11 +48,10 @@ void send_distance_vector();
 // Parse router config from cfg
 int set_router(const char *i);
 
-// Display information about the router
+// Display information about the self router
 void display_router_info();
 
-// Loop over all neighbours and display useful info about 'em (and itself);
-
+// Loop over Routing table and display useful info about 'em (and itself)
 void display_reachable_routers();
 
 // Get all attributes from Message and concatenate into a single string
@@ -69,14 +69,20 @@ void display_received_messages();
 // Terminal thread, display menu, get user input and redirect to chosen option
 void *terminal(void *arg);
 
-// Manage all incoming data
+// Manage all incoming data, modifying queue
 void *packet_handler(void *arg);
 
 // Sender Thread keep on listening to outgoing queue and send msg when there is anything
 void *sender(void *arg);
 
+// Sends a reply through the messaging system to whoever router sent its data/msg
+void reply(char *buffer);
+
 // Receiver thread, is always linstening to incoming data on specified port
 void *receiver(void *arg);
 
-// Perform rountines such as periodically sending distance vector to neighbours
-void *routine(void *arg);
+// Periodically send the distance vector to all direct neighbours
+void *rt_routine(void *arg);
+
+// Check which router replied through the messaging system, and set cost accordingly
+void *ack_routine(void *arg);
