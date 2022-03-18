@@ -653,24 +653,48 @@ void *ack_routine(void *arg)
 
   while (1)
   {
-    sleep(4);
+    sleep(RT_INTERVAL + 2);
 
     pthread_mutex_lock(&ack_mutex);
     for (size_t i = 0; i < queue_size(q_ack); i++)
     {
       deserialize_msg(m, q_ack->queue[i]);
       acks[(m->source_port - 25000) - 1] = 1;
-      // queue_remove(q_ack);
+      queue_remove(q_ack);
     }
 
     for (size_t i = 0; i < sizeof(acks) / sizeof(acks[0]); i++)
     {
-      printf("%d ", acks[i]);
+      if (acks[i] == 1)
+      {
+        for (size_t j = 0; j < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); j++)
+        {
+          if (r1->neighbours[j]->id == i + 1)
+          {
+            routing_table_set(rr, i + 1, rt->routes[i + 1][0], rt->routes[i + 1][1]);
+            // printf("N:%d\n", r1->neighbours[j]->id);
+          }
+        }
+      }
+      else
+      {
+        printf("Contagem ao infinito\n");
+        if (rt->routes[i + 1][0] > 50)
+        {
+          routing_table_set(rr, i + 1, INF, -1);
+        }
+        else
+        {
+          routing_table_set(rr, i + 1, rt->routes[i + 1][0] + 5, rt->routes[i + 1][1]);
+        }
+      }
     }
+    routing_table_set(rr, r1->id, 0, r1->id);
+
     printf("\n");
 
-    // display_routing_table(rr);
-    // display_routing_table(rt);
+    *rt = *rr;
+    display_routing_table(rt);
     pthread_mutex_unlock(&ack_mutex);
   }
 }

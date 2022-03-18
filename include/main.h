@@ -23,7 +23,7 @@
 #define roteador_cfg "./cfg/roteador.config"
 
 // sleep time between each distance vector routine
-#define RT_INTERVAL 30
+#define RT_INTERVAL 2
 
 // mutexes to control incoming and outgoing Queues
 pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
