@@ -88,7 +88,7 @@ void send_distance_vector()
   msg->source_port = r1->port;
   get_timestamp(msg->timestamp);
 
-  // loop over neighbours here, setting destination accordinly
+  // loop over neighbours here, setting destination accordingly
   for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++)
   {
     if (r1->neighbours[i]->id > 6)
@@ -161,7 +161,7 @@ int set_router(const char *i)
   return 0;
 }
 
-// Display information about the router
+// Display information about the self router
 void display_router_info()
 {
   printf("\n ----------- INFO -----------\n");
@@ -174,7 +174,7 @@ void display_router_info()
   printf(" ----------------------------\n\n");
 }
 
-// Loop over all neighbours and display useful info about 'em (and itself)
+// Loop over Routing table and display useful info about 'em (and itself)
 void display_reachable_routers()
 {
   printf("\n  Index | Cost | Next hop\n");
@@ -437,7 +437,7 @@ void *terminal(void *arg)
   }
 }
 
-// Manage all incoming data
+// Manage all incoming data, modifying queue
 void *packet_handler(void *arg)
 {
   Message *msg = malloc(sizeof(Message));
@@ -467,9 +467,8 @@ void *packet_handler(void *arg)
         }
         else if (msg->type == 2)
         {
-          // add to ACK queue
         }
-        // if is distance vector
+        // if is distance vector, calculate new paths via Bellman-Ford
         else
         {
           printf("\n Distance vector arrived from {%s:%d}\n", msg->source_ip, msg->source_port);
@@ -477,8 +476,9 @@ void *packet_handler(void *arg)
           {
             char temp[20];
             get_timestamp(temp);
-            printf("\n Routing Updated {%s}", temp);
+            printf("\n Routing Table Updated {%s}", temp);
             display_routing_table(rt);
+            // since my distance vector got updated, notify neighbours
             send_distance_vector();
           };
         }
@@ -537,7 +537,7 @@ void *sender(void *arg)
       socklen_t addr_size = sizeof(serverAddr);
 
       msg->id = msg_id++;
-      printf("\n (%d) Sending msg '%d' to {%s:%d}\n", msg->type, msg->id, msg->next_hop_destination_ip, msg->next_hop_destination_port);
+      printf(" (%d) Sending msg '%d' to {%s:%d}\n", msg->type, msg->id, msg->next_hop_destination_ip, msg->next_hop_destination_port);
       sendto(clientSocket, serialized_msg, sizeof(serialized_msg), 0, (struct sockaddr *)&serverAddr, addr_size);
       queue_remove(q_out);
     }
@@ -545,18 +545,19 @@ void *sender(void *arg)
   }
 }
 
-// send reply
+// Sends a reply through the messaging system to whoever router sent its data/msg
 void reply(char *buffer)
 {
   Message *mm = malloc(sizeof(Message));
   deserialize_msg(mm, buffer);
 
-  // se a msg tem origem em outro roteador
+  // if the message was originated from a router that its not me
   if (mm->source_port != r1->port)
   {
-    // se nao for ack, cria o ack e coloca na fila de saida
+    // if is not an ACK, create one and add to outgoing queue
     if (mm->type != 2)
     {
+      // create message with reply
       mm->type = 2;
       mm->final_destination_id = mm->source_port % 10;
       mm->source_port = r1->port;
@@ -565,11 +566,12 @@ void reply(char *buffer)
       char temp[20];
       get_timestamp(temp);
       strcpy(mm->timestamp, temp);
+
+      // get the next hop from the routing table
       for (size_t i = 0; i < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); i++)
       {
         if (r1->neighbours[i]->id == rt->routes[mm->final_destination_id][1])
         {
-          // set port to chosen neighbour and also set mm destination
           strcpy(mm->next_hop_destination_ip, r1->neighbours[i]->ip);
           mm->next_hop_destination_port = r1->neighbours[i]->port;
           break;
@@ -581,13 +583,11 @@ void reply(char *buffer)
       sem_post(&sem_out);
       pthread_mutex_unlock(&out_mutex);
     }
-    // se a msg eh do tipo ack, adiciona na fila
+    // if message is in fact an ACK, add it to the queue with replies on it
     else
     {
       pthread_mutex_lock(&ack_mutex);
       queue_insert(q_ack, buffer);
-      // printf("Inserindo no QAKC\n\n");
-      // display_queue_content(q_ack);
       pthread_mutex_unlock(&ack_mutex);
     }
   }
@@ -633,7 +633,7 @@ void *receiver(void *arg)
   }
 }
 
-// Perform rountines such as periodically sending distance vector to neighbours
+// Periodically send the distance vector to all direct neighbours
 void *rt_routine(void *arg)
 {
   while (1)
@@ -643,7 +643,7 @@ void *rt_routine(void *arg)
   }
 }
 
-// Perform rountines such as periodically sending distance vector to neighbours
+// Check which router replied through the messaging system, and set cost accordingly
 void *ack_routine(void *arg)
 {
   Message *m = malloc(sizeof(Message));
@@ -654,47 +654,50 @@ void *ack_routine(void *arg)
   while (1)
   {
     sleep(RT_INTERVAL + 2);
-
     pthread_mutex_lock(&ack_mutex);
+    // loop through all acks
     for (size_t i = 0; i < queue_size(q_ack); i++)
     {
+      // set router as reachable and remove from queue of replies
       deserialize_msg(m, q_ack->queue[i]);
       acks[(m->source_port - 25000) - 1] = 1;
       queue_remove(q_ack);
     }
 
+    // for all neighbours
     for (size_t i = 0; i < sizeof(acks) / sizeof(acks[0]); i++)
     {
+      // if neighbour replied with ack
       if (acks[i] == 1)
       {
         for (size_t j = 0; j < sizeof(r1->neighbours) / sizeof(r1->neighbours[0]); j++)
         {
+          // copy current cost and next_hop a new/temporary table
           if (r1->neighbours[j]->id == i + 1)
           {
             routing_table_set(rr, i + 1, rt->routes[i + 1][0], rt->routes[i + 1][1]);
-            // printf("N:%d\n", r1->neighbours[j]->id);
           }
         }
       }
+      // if neighbour didn't respond, increase the cost to reach it
       else
       {
-        printf("Contagem ao infinito\n");
+        // if cost surpassed a certain threshold then set it as unavaiable
         if (rt->routes[i + 1][0] > 50)
         {
           routing_table_set(rr, i + 1, INF, -1);
         }
+        // increase cost to router
         else
         {
           routing_table_set(rr, i + 1, rt->routes[i + 1][0] + 5, rt->routes[i + 1][1]);
         }
       }
     }
+    // default cost to myself as 0
     routing_table_set(rr, r1->id, 0, r1->id);
-
-    printf("\n");
-
+    // set temp table as current table
     *rt = *rr;
-    display_routing_table(rt);
     pthread_mutex_unlock(&ack_mutex);
   }
 }
