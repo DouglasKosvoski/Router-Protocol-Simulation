@@ -474,6 +474,7 @@ void *packet_handler(void *arg)
           printf("\n Distance vector arrived from {%s:%d}\n", msg->source_ip, msg->source_port);
           if (bellman_ford_distributed(rt, msg->payload, msg->source_port % 10) == 1)
           {
+            printf("Update BF\n");
             char temp[20];
             get_timestamp(temp);
             printf("\n Routing Table Updated {%s}", temp);
@@ -699,5 +700,6 @@ void *ack_routine(void *arg)
     // set temp table as current table
     *rt = *rr;
     pthread_mutex_unlock(&ack_mutex);
+    memset(acks, 0, sizeof(acks));
   }
 }
