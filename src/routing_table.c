@@ -11,11 +11,13 @@ void init_routing_table(Routing_table *rt)
   {
     rt->routes[i][0] = INF;
     rt->routes[i][1] = -1;
+    rt->original[i][0] = INF;
+    rt->original[i][1] = -1;
   }
 }
 
 // Get self distance vector and serialize to string
-void serialize_dt(Routing_table *rt, char *str)
+void serialize_rt(Routing_table *rt, char *str)
 {
   char values[256] = "", temp[10] = "", separator[2] = "*";
   memset(values, 0, strlen(values));
@@ -59,17 +61,29 @@ void display_routing_table(Routing_table *rt)
 }
 
 // Set element on distance vector
-void routing_table_set(Routing_table *rt, int id, int cost, int next_hop_id)
+void routing_table_set(Routing_table *rt, int id, int cost, int next_hop_id, int ori)
 {
-  rt->routes[id][COST] = cost;
-  rt->routes[id][NHOP] = next_hop_id;
+  if (ori == 0)
+  {
+    rt->original[id][COST] = cost;
+    rt->original[id][NHOP] = next_hop_id;
+  }
+  else
+  {
+    rt->routes[id][COST] = cost;
+    rt->routes[id][NHOP] = next_hop_id;
+  }
 }
 
 // Check and compare received distance vector from neighbours to self distance vector
 // if there is a route 'cheaper' than current route update it to new
 // 'return' does the trick, if True updated distance vector will be sent to neighbours
-int bellman_ford_distributed(Routing_table *rt, char *content, int next_hop)
+int bellman_ford_distributed(Routing_table *rt, char *content, int next_hop, int my_id)
 {
+  char before[256], after[256];
+  serialize_rt(rt, before);
+
+  // printf("\n Running B-F on `%s` from %d\n", content, next_hop);
   char delim[2] = "*", *token = strtok(content, delim);
   int new_cost, i = 1, cur_cost = 99, table_updated = 0;
 
@@ -82,18 +96,34 @@ int bellman_ford_distributed(Routing_table *rt, char *content, int next_hop)
     // if current cost is not infinite, then add enlace cost
     if (rt->routes[next_hop][COST] != INF)
     {
-      new_cost += rt->routes[next_hop][COST];
+      new_cost += rt->original[next_hop][COST];
     }
 
-    if (new_cost < cur_cost)
+    if (new_cost == 0 && i != my_id)
     {
-      // update internal distance vector
-      routing_table_set(rt, i, new_cost, next_hop);
-      table_updated = 1;
+      return 0;
+    }
+
+    // printf(" (%d) | atual:%d novo:%d  ori:%d\n", i, cur_cost, new_cost, next_hop);
+    // update internal distance vector
+    if (new_cost < cur_cost || rt->routes[i][NHOP] == next_hop)
+    {
+      // printf("melhor encontrado\n");
+      if (new_cost > 50)
+      {
+        routing_table_set(rt, i, INF, -1, 1);
+      }
+      else
+      {
+        routing_table_set(rt, i, new_cost, next_hop, 1);
+      }
     }
     i++;
     token = strtok(NULL, delim);
   }
+
   // if true, will propagate new distance vector to the others neighbours
+  serialize_rt(rt, after);
+  table_updated = strcmp(before, after) == 0 ? 0 : 1;
   return table_updated;
 }

@@ -23,12 +23,14 @@
 #define roteador_cfg "./cfg/roteador.config"
 
 // sleep time between each distance vector routine
-#define RT_INTERVAL 2
+#define RT_INTERVAL 10
+#define INCREMENT 1
 
 // mutexes to control incoming and outgoing Queues
 pthread_mutex_t in_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t out_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ack_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 // semaphores to control Queue state
 sem_t sem_in, sem_out;
 // incoming and outgoing Queues, aswell as Queue to store user data
@@ -82,7 +84,4 @@ void reply(char *buffer);
 void *receiver(void *arg);
 
 // Periodically send the distance vector to all direct neighbours
-void *rt_routine(void *arg);
-
-// Check which router replied through the messaging system, and set cost accordingly
-void *ack_routine(void *arg);
+void *routine(void *arg);

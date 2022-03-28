@@ -6,7 +6,7 @@ static int msg_id = 0;
 
 typedef struct Message
 {
-  // whether msg is for sending a user-text or vector-control, 0 = msg; 1 = control
+  // whether msg is for sending a user-text or vector-control, 0 = msg; 1 = control, 2 = ack
   short type;
   // datetime representing when the Message was created
   char timestamp[20];
